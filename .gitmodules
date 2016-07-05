@@ -31,9 +31,6 @@
 [submodule "project/jni/application/xserver-debian/xserver"]
 	path = project/jni/application/xserver-debian/xserver
 	url = git@github.com:pelya/xserver.git
-[submodule "project/jni/application/basiliskii/basiliskii"]
-	path = project/jni/application/basiliskii/basiliskii
-	url = git@github.com:pelya/BasiliskII-android.git
 [submodule "project/jni/vncserver/src"]
 	path = project/jni/vncserver/src
 	url = git@github.com:LibVNC/libvncserver.git
