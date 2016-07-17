@@ -210,7 +210,7 @@ cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j
 			adb uninstall `grep AppFullName ../../AndroidAppSettings.cfg | sed 's/.*=//'` && adb install -r MainActivity-debug.apk ; } ; \
 		true ; } && \
 	{	$run_apk && { \
-			ActivityName="`grep AppFullName ../../AndroidAppSettings.cfg | sed 's/.*=//'`/.MainActivity" ; \
+		ActivityName="com.towersmatrix.vrx/.VRXActivity" ; \
 			RUN_APK="adb shell am start -n $ActivityName" ; \
 			echo "Running $ActivityName on the USB-connected device:" ; \
 			echo "$RUN_APK" ; \

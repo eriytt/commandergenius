@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-	  package="x.org.server"
+	  package="com.towersmatrix.vrx"
 	  android:versionCode="11140"
 	  android:versionName="1.11.40"
 	  android:installLocation="auto"
@@ -12,7 +12,7 @@
 				 android:banner="@drawable/banner"
 				 android:isGame="true"
 	>
-		<activity android:name="com.github.vrx.VRXActivity"
+		<activity android:name=".VRXActivity"
 				  android:label="@string/app_name"
 				  android:alwaysRetainTaskState="true"
 				  android:launchMode="singleTask"

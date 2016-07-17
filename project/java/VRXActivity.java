@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.github.vrx;
+package com.towersmatrix.vrx;
 
 import com.google.vr.ndk.base.AndroidCompat;
 import com.google.vr.ndk.base.GvrLayout;
