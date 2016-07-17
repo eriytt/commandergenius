@@ -82,13 +82,7 @@ NDK_TOOLCHAIN_VERSION=$GCCVER
 # export PATH=$PATH:~/src/endless_space/android-ndk-r7
 NDKBUILDPATH=$PATH
 export `grep "AppFullName=" AndroidAppSettings.cfg`
-if ( grep "package $AppFullName;" project/src/Globals.java > /dev/null 2>&1 && \
-		[ "`readlink AndroidAppSettings.cfg`" -ot "project/src/Globals.java" ] && \
-		[ -z "`find project/java/* project/AndroidManifestTemplate.xml -cnewer project/src/Globals.java`" ] ) ; then true ; else
-	./changeAppSettings.sh -a || exit 1
-	sleep 1
-	touch project/src/Globals.java
-fi
+
 if $build_release ; then
 	sed -i 's/android:debuggable="true"/android:debuggable="false"/g' project/AndroidManifest.xml
 else
@@ -108,6 +102,16 @@ if uname -s | grep -i "windows" > /dev/null ; then
 	MYARCH=windows-x86_64
 fi
 
+NDK=`which ndk-build`
+NDK=`dirname $NDK`
+NDK=`readlink -f $NDK`
+
+[ -z "$PLATFORMVER" ] && PLATFORMVER=android-19
+
+echo exporting GCCVER=$NDK_TOOLCHAIN_VERSION
+
+export MYARCH NDK GCCVER=$NDK_TOOLCHAIN_VERSION NDK_TOOLCHAIN_VERSION PLATFORMVER
+
 $quick_rebuild || rm -r -f project/bin/* # New Android SDK introduced some lame-ass optimizations to the build system which we should take care about
 [ -x project/jni/application/src/AndroidPreBuild.sh ] && {
 	cd project/jni/application/src
@@ -126,9 +130,13 @@ strip_libs() {
 		grep "MultiABI=" ../AndroidAppSettings.cfg | grep "y\\|all\\|armeabi-v7a" > /dev/null && \
 		echo Stripping libapplication-armeabi-v7a.so by hand && \
 		rm obj/local/armeabi-v7a/libapplication.so && \
+		rm -f obj/local/armeabi-v7a/libvrxwm.so && \
 		cp jni/application/src/libapplication-armeabi-v7a.so obj/local/armeabi-v7a/libapplication.so && \
 		cp jni/application/src/libapplication-armeabi-v7a.so libs/armeabi-v7a/libapplication.so && \
-		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libapplication.so
+		cp jni/application/xserver-vrx/vrxwm/build-armeabi-v7a/.libs/libvrxwm.so obj/local/armeabi-v7a/libvrxwm.so && \
+		cp jni/application/xserver-vrx/vrxwm//build-armeabi-v7a/.libs/libvrxwm.so libs/armeabi-v7a/libvrxwm.so && \
+		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libapplication.so && \
+		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libvrxwm.so
 	grep "CustomBuildScript=y" ../AndroidAppSettings.cfg > /dev/null && \
 		grep "MultiABI=" ../AndroidAppSettings.cfg | grep "all\\|mips" > /dev/null && \
 		echo Stripping libapplication-mips.so by hand && \
@@ -140,9 +148,13 @@ strip_libs() {
 		grep "MultiABI=" ../AndroidAppSettings.cfg | grep "all\\|x86" > /dev/null && \
 		echo Stripping libapplication-x86.so by hand && \
 		rm obj/local/x86/libapplication.so && \
+		rm obj/local/x86/libvrxwm.so && \
 		cp jni/application/src/libapplication-x86.so obj/local/x86/libapplication.so && \
 		cp jni/application/src/libapplication-x86.so libs/x86/libapplication.so && \
-		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/x86-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/i686-linux-android-strip --strip-unneeded libs/x86/libapplication.so
+		cp jni/application/xserver-vrx/vrxwm/build-x86/.libs/libvrxwm.so obj/local/x86/libvrxwm.so && \
+		cp jni/application/xserver-vrx/vrxwm//build-x86/.libs/libvrxwm.so libs/x86/libvrxwm.so && \
+		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/x86-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/i686-linux-android-strip --strip-unneeded libs/x86/libapplication.so && \
+	`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/x86/libvrxwm.so
 	grep "CustomBuildScript=y" ../AndroidAppSettings.cfg > /dev/null && \
 		grep "MultiABI=" ../AndroidAppSettings.cfg | grep "all\\|x86_64" > /dev/null && \
 		echo Stripping libapplication-x86_64.so by hand && \

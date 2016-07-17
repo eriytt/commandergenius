@@ -7,7 +7,6 @@
 /project/obj
 /project/src
 /project/res/values*/strings.xml
-/project/AndroidManifest.xml
 /project/jni/Settings.mk
 /project/jni/application/*/libapplication*.so
 /project/jni/application/src
