@@ -1,0 +1,55 @@
+# Available libraries: mad (GPL-ed!) sdl_mixer sdl_image sdl_ttf sdl_net sdl_blitpool sdl_gfx sdl_sound intl xml2 lua jpeg png ogg flac tremor vorbis freetype xerces curl theora fluidsynth lzma lzo2 mikmod openal timidity zzip bzip2 yaml-cpp python boost_date_time boost_filesystem boost_iostreams boost_program_options boost_regex boost_signals boost_system boost_thread glu avcodec avdevice avfilter avformat avresample avutil swscale swresample bzip2 
+APP_MODULES := application sdl-1.2 sdl_main sdl_native_helpers jpeg png ogg flac vorbis freetype jpeg png freetype sdl_ttf crypto
+
+# To filter out static libs from all libs in makefile
+APP_AVAILABLE_STATIC_LIBS := jpeg png tremor freetype xerces ogg tremor vorbis flac boost_date_time boost_filesystem boost_iostreams boost_program_options boost_regex boost_signals boost_system boost_thread boost_locale glu icudata icutest icui18n icuio icule iculx icutu icuuc sdl_savepng android_support glshim nanogl
+
+APP_ABI := armeabi-v7a x86
+
+# The namespace in Java file, with dots replaced with underscores
+SDL_JAVA_PACKAGE_PATH := com_towersmatrix_vrx
+
+# Path to files with application data - they should be downloaded from Internet on first app run inside
+# Java sources, or unpacked from resources (TODO)
+# Typically /sdcard/alienblaster 
+# Or /data/data/de.schwardtnet.alienblaster/files if you're planning to unpack data in application private folder
+# Your application will just set current directory there
+SDL_CURDIR_PATH := com.towersmatrix.vrx
+
+# Android Dev Phone G1 has trackball instead of cursor keys, and 
+# sends trackball movement events as rapid KeyDown/KeyUp events,
+# this will make Up/Down/Left/Right key up events with X frames delay,
+# so if application expects you to press and hold button it will process the event correctly.
+# TODO: create a libsdl config file for that option and for key mapping/on-screen keyboard
+SDL_TRACKBALL_KEYUP_DELAY := 1
+
+# If the application designed for higher screen resolution enable this to get the screen
+# resized in HW-accelerated way, however it eats a tiny bit of CPU
+SDL_VIDEO_RENDER_RESIZE := 1
+
+COMPILED_LIBRARIES := jpeg png freetype sdl_ttf crypto
+
+APPLICATION_ADDITIONAL_CFLAGS := 
+
+APPLICATION_ADDITIONAL_LDFLAGS := 
+
+APPLICATION_OVERLAPS_SYSTEM_HEADERS := 
+
+APPLICATION_SUBDIRS_BUILD := none
+
+APPLICATION_BUILD_EXCLUDE := 
+
+APPLICATION_CUSTOM_BUILD_SCRIPT := y
+
+USE_GLSHIM := 
+
+SDL_ADDITIONAL_CFLAGS := 		 -DSDL_ANDROID_KEYCODE_0=LALT -DSDL_ANDROID_KEYCODE_1=UNDO -DSDL_ANDROID_KEYCODE_2=NO_REMAP -DSDL_ANDROID_KEYCODE_3=NO_REMAP -DSDL_ANDROID_KEYCODE_4=UNDO -DSDL_ANDROID_KEYCODE_5=HELP 		 -DSDL_ANDROID_SCREENKB_KEYCODE_0=LCTRL -DSDL_ANDROID_SCREENKB_KEYCODE_1=LALT -DSDL_ANDROID_SCREENKB_KEYCODE_2=LSHIFT -DSDL_ANDROID_SCREENKB_KEYCODE_3=RETURN -DSDL_ANDROID_SCREENKB_KEYCODE_4=SPACE -DSDL_ANDROID_SCREENKB_KEYCODE_5=DELETE -DSDL_ANDROID_SCREENKB_KEYCODE_6=KP_PLUS -DSDL_ANDROID_SCREENKB_KEYCODE_7=KP_MINUS -DSDL_ANDROID_SCREENKB_KEYCODE_8=1 -DSDL_ANDROID_SCREENKB_KEYCODE_9=2 		 -DSDL_ANDROID_GAMEPAD_KEYCODE_0=LALT -DSDL_ANDROID_GAMEPAD_KEYCODE_1=RETURN -DSDL_ANDROID_GAMEPAD_KEYCODE_2=KP_PLUS -DSDL_ANDROID_GAMEPAD_KEYCODE_3=KP_MINUS -DSDL_ANDROID_GAMEPAD_KEYCODE_4=SPACE -DSDL_ANDROID_GAMEPAD_KEYCODE_5=DELETE -DSDL_ANDROID_GAMEPAD_KEYCODE_6=KP_PLUS -DSDL_ANDROID_GAMEPAD_KEYCODE_7=KP_MINUS -DSDL_ANDROID_GAMEPAD_KEYCODE_8=1 -DSDL_ANDROID_GAMEPAD_KEYCODE_9=2 		 		 		 		 		-DSDL_COMPATIBILITY_HACKS_PROPER_USADE_OF_SDL_UPDATERECTS=1 		
+
+SDL_VERSION := 1.2
+
+# Link-time optimization enabled for optimization junkies. -O999 etc
+#APP_CFLAGS := -flto
+#APP_CXXFLAGS := -flto
+#APP_LDFLAGS := -flto
+# Latest GCC got better LTO support
+NDK_TOOLCHAIN_VERSION := 
