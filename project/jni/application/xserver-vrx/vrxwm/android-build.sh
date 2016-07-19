@@ -1,7 +1,8 @@
 #!/bin/sh
 
 if [ ! -e configure ]; then
-    libtoolize && aclocal && automake --add-missing && autoconf || exit 1
+    touch NEWS README AUTHORS ChangeLog
+    libtoolize && aclocal && autoheader && automake --add-missing && autoconf || exit 1
 fi
 
 echo "Building vrxwm for $1"

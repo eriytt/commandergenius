@@ -6,7 +6,6 @@
 /project/assets
 /project/obj
 /project/src
-/project/res/values*/strings.xml
 /project/jni/application/*/libapplication*.so
 /project/jni/application/src
 /project/res/drawable-xhdpi/ouya_icon.png
@@ -16,3 +15,4 @@
 /project/themes/converter
 /project/jni/android-support
 /project/res/drawable/banner.png
+/project/jni/openssl/include/openssl/opensslconf.h

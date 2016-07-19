@@ -83,6 +83,12 @@ NDK_TOOLCHAIN_VERSION=$GCCVER
 NDKBUILDPATH=$PATH
 export `grep "AppFullName=" AndroidAppSettings.cfg`
 
+
+echo Compiling prebuilt libraries
+make -C project/jni -f Makefile.prebuilt
+echo Done
+
+
 if $build_release ; then
 	sed -i 's/android:debuggable="true"/android:debuggable="false"/g' project/AndroidManifest.xml
 else

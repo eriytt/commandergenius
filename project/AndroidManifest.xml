@@ -33,7 +33,6 @@
 				 android:icon="@drawable/icon"
 				 android:debuggable="false"
 				 android:allowBackup="true"
-				 android:banner="@drawable/banner"
 				 android:isGame="false"
 				 android:theme="@android:style/Theme.Holo.NoActionBar.Fullscreen">
     <activity android:name=".VRXActivity"
