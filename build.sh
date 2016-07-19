@@ -108,6 +108,9 @@ NDK=`readlink -f $NDK`
 
 [ -z "$PLATFORMVER" ] && PLATFORMVER=android-19
 
+GVRSDK=$NDK/../gvr-android-sdk
+GVRNDK=$GVRSDK/ndk-beta
+
 echo exporting GCCVER=$NDK_TOOLCHAIN_VERSION
 
 export MYARCH NDK GCCVER=$NDK_TOOLCHAIN_VERSION NDK_TOOLCHAIN_VERSION PLATFORMVER
@@ -131,6 +134,7 @@ strip_libs() {
 		echo Stripping libapplication-armeabi-v7a.so by hand && \
 		rm obj/local/armeabi-v7a/libapplication.so && \
 		rm -f obj/local/armeabi-v7a/libvrxwm.so && \
+		cp -f $GVRNDK/lib/android_arm/libgvr.so libs/armeabi-v7a/libgvr.so && \
 		cp jni/application/src/libapplication-armeabi-v7a.so obj/local/armeabi-v7a/libapplication.so && \
 		cp jni/application/src/libapplication-armeabi-v7a.so libs/armeabi-v7a/libapplication.so && \
 		cp jni/application/xserver-vrx/vrxwm/build-armeabi-v7a/.libs/libvrxwm.so obj/local/armeabi-v7a/libvrxwm.so && \
@@ -149,6 +153,7 @@ strip_libs() {
 		echo Stripping libapplication-x86.so by hand && \
 		rm obj/local/x86/libapplication.so && \
 		rm obj/local/x86/libvrxwm.so && \
+		cp -f $GVRNDK/lib/android_x86/libgvr.so libs/x86/libgvr.so && \
 		cp jni/application/src/libapplication-x86.so obj/local/x86/libapplication.so && \
 		cp jni/application/src/libapplication-x86.so libs/x86/libapplication.so && \
 		cp jni/application/xserver-vrx/vrxwm/build-x86/.libs/libvrxwm.so obj/local/x86/libvrxwm.so && \
@@ -179,6 +184,8 @@ strip_libs() {
 	return 0
 }
 
+ANTPROPS="-Dgvr.sdk=$GVRSDK"
+
 cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j$NCPU V=1 && \
 	strip_libs && \
 	cd .. && ./copyAssets.sh && cd project && \
@@ -186,7 +193,7 @@ cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j
 			$quick_rebuild && { \
 				ln -s -f libs lib ; \
 				zip -u -r bin/MainActivity-release-unsigned.apk lib assets || exit 1 ; \
-			} || ant release || exit 1 ; \
+			} || ant $ANTPROPS release || exit 1 ; \
 			[ '!' -x jni/application/src/AndroidPostBuild.sh ] || {
 				cd jni/application/src ; \
 				./AndroidPostBuild.sh `pwd`/../../../bin/MainActivity-release-unsigned.apk || exit 1 ; \
@@ -202,7 +209,7 @@ cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j
 				jarsigner -verbose -keystore ~/.android/debug.keystore -storepass android -sigalg MD5withRSA -digestalg SHA1 bin/MainActivity-debug-unaligned.apk androiddebugkey || exit 1 ; \
 				rm -f bin/MainActivity-debug.apk ; \
 				zipalign 4 bin/MainActivity-debug-unaligned.apk bin/MainActivity-debug.apk || exit 1 ; \
-			} || ant debug || exit 1 ; \
+			} || ant $ANTPROPS debug || exit 1 ; \
 		fi ; } && \
 	{	if $sign_apk; then cd .. && ./sign.sh && cd project ; else true ; fi ; } && \
 	{	$install_apk && [ -n "`adb devices | tail -n +2`" ] && \

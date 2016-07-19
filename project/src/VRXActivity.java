@@ -40,7 +40,7 @@ public class VRXActivity extends Activity {
 
   static {
     System.loadLibrary("gvr");
-    System.loadLibrary("VRX_jni");
+    System.loadLibrary("vrxwm");
   }
 
   @Override

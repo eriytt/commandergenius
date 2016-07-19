@@ -85,9 +85,6 @@ static const char* kPassthroughFragmentShader =
     "  gl_FragColor = v_Color;\n"
     "}\n";
 
-// Sound file in APK assets.
-static const char* kSoundFile = "cube_sound.wav";
-
 static std::array<float, 16> MatrixToGLArray(const gvr::Mat4f& matrix) {
   // Note that this performs a *tranpose* to a column-major matrix array, as
   // expected by GL.
@@ -215,9 +212,8 @@ static void CheckGLError(const char* label) {
 }  // namespace
 
 VRXRenderer::VRXRenderer(
-    gvr_context* gvr_context, std::unique_ptr<gvr::AudioApi> gvr_audio_api)
+    gvr_context* gvr_context)
     : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
-      gvr_audio_api_(std::move(gvr_audio_api)),
       floor_vertices_(nullptr),
       floor_colors_(nullptr),
       floor_normals_(nullptr),
@@ -227,12 +223,9 @@ VRXRenderer::VRXRenderer(
       cube_normals_(nullptr),
       light_pos_world_space_({0.0f, 2.0f, 0.0f, 1.0f}),
       object_distance_(3.5f),
-      floor_depth_(20.0f),
-      sound_id_(-1) {}
+      floor_depth_(20.0f) {}
 
 VRXRenderer::~VRXRenderer() {
-  // Join the audio initialization thread in case it still exists.
-  audio_initialization_thread_.join();
 }
 
 void VRXRenderer::InitializeGl() {
@@ -308,13 +301,6 @@ void VRXRenderer::InitializeGl() {
 
   render_params_list_.reset(new gvr::RenderParamsList(
       gvr_api_->CreateEmptyRenderParamsList()));
-
-  // Initialize audio engine and preload sample in a separate thread to avoid
-  // any delay during construction and app initialization. Only do this once.
-  if (!audio_initialization_thread_.joinable()) {
-    audio_initialization_thread_ =
-        std::thread(&VRXRenderer::LoadAndPlayCubeSound, this);
-  }
 }
 
 void VRXRenderer::DrawFrame() {
@@ -348,10 +334,6 @@ void VRXRenderer::DrawFrame() {
       *framebuffer_handle_, *render_params_list_, &head_pose_, &target_time);
 
   CheckGLError("onDrawFrame");
-
-  // Update audio head rotation in audio API.
-  gvr_audio_api_->SetHeadRotation(head_pose_.rotation);
-  gvr_audio_api_->Update();
 }
 
 void VRXRenderer::OnTriggerEvent() {
@@ -362,13 +344,11 @@ void VRXRenderer::OnTriggerEvent() {
 
 void VRXRenderer::OnPause() {
   gvr_api_->PauseTracking();
-  gvr_audio_api_->Pause();
 }
 
 void VRXRenderer::OnResume() {
   gvr_api_->RefreshViewerProfile();
   gvr_api_->ResumeTracking();
-  gvr_audio_api_->Resume();
 }
 
 /**
@@ -527,11 +507,6 @@ void VRXRenderer::HideObject() {
   model_cube_.m[0][3] = cube_position[0];
   model_cube_.m[1][3] = cube_position[1];
   model_cube_.m[2][3] = cube_position[2];
-
-  if (sound_id_ >= 0) {
-    gvr_audio_api_->SetSoundObjectPosition(sound_id_, cube_position[0],
-                                           cube_position[1], cube_position[2]);
-  }
 }
 
 bool VRXRenderer::IsLookingAtObject() {
@@ -548,16 +523,4 @@ bool VRXRenderer::IsLookingAtObject() {
   float yaw = std::atan2(temp_position[0], -temp_position[2]);
 
   return std::abs(pitch) < kPitchLimit && std::abs(yaw) < kYawLimit;
-}
-
-void VRXRenderer::LoadAndPlayCubeSound() {
-  // Preload sound file.
-  gvr_audio_api_->PreloadSoundfile(kSoundFile);
-  // Create sound file handler from preloaded sound file.
-  sound_id_ = gvr_audio_api_->CreateSoundObject(kSoundFile);
-  // Set sound object to current cube position.
-  gvr_audio_api_->SetSoundObjectPosition(
-      sound_id_, model_cube_.m[0][3], model_cube_.m[1][3], model_cube_.m[2][3]);
-  // Trigger sound object playback.
-  gvr_audio_api_->PlaySound(sound_id_, true /* looped playback */);
 }

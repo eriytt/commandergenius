@@ -19,12 +19,11 @@
 #include <memory>
 
 #include "vr/gvr/capi/include/gvr.h"
-#include "vr/gvr/capi/include/gvr_audio.h"
 #include "vrx_renderer.h"
 
 #define JNI_METHOD(return_type, method_name) \
   JNIEXPORT return_type JNICALL              \
-      Java_com_google_vr_ndk_samples_VRX_MainActivity_##method_name
+      Java_com_towersmatrix_vrx_VRXActivity_##method_name
 
 namespace {
 
@@ -43,13 +42,7 @@ JNI_METHOD(jlong, nativeCreateRenderer)(JNIEnv *env, jclass clazz,
                                         jobject class_loader,
                                         jobject android_context,
                                         jlong native_gvr_api) {
-  std::unique_ptr<gvr::AudioApi> audio_context(new gvr::AudioApi);
-  audio_context->Init(env, android_context, class_loader,
-                      GVR_AUDIO_RENDERING_BINAURAL_HIGH_QUALITY);
-
-  return jptr(
-      new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api),
-                               std::move(audio_context)));
+  return jptr(new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api)));
 }
 
 JNI_METHOD(void, nativeDestroyRenderer)

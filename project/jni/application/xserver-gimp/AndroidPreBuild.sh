@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cp -f ultimatedroid.raw ../../../res/raw/
+#cp -f ultimatedroid.raw ../../../res/raw/

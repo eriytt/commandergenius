@@ -15,18 +15,23 @@ case $ARCH in
     armeabi)
 	TARGET_HOST=armv5te-none-linux-androideabi
 	TARGET_ARCH=arch-arm
+	NDK_ARCH=android_arm # ?
 	;;
     armeabi-v7a)
 	TARGET_HOST=arm-linux-androideabi
 	TARGET_ARCH=arch-arm
+	NDK_ARCH=android_arm
 	;;
     x86)
 	TARGET_HOST=i686-linux-android
 	TARGET_ARCH=arch-x86
+	NDK_ARCH=android_x86
 	;;
     mips)
 	TARGET_HOST=mipsel-linux-android
 	TARGET_ARCH=arch-mips
+	echo "MIPS architecture not supported"
+	exit 1
 	;;
 esac
 
@@ -36,11 +41,14 @@ mkdir -p $builddir
 cd $builddir
 
 #echo NDK_TOOLCHAIN_VERSION=$NDK_TOOLCHAIN_VERSION
-export
+#export
+
+LDFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -L$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH -L$GVRNDK/lib/$NDK_ARCH -lgnustl_shared -llog -lEGL -lGLESv2 -lgvr"
+CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -D__ANDROID__ -std=c++11"
 
 [ -e Makefile ] || \
-    LDFLAGS=--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH \
-	   CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -D__ANDROID__ -std=c++11" \
+    LDFLAGS="$LDFLAGS" \
+	   CXXFLAGS="$CXXFLAGS" \
 	   ../configure --build i686-pc-linux-gnu --host $TARGET_HOST || exit 1
 
 make || exit 1

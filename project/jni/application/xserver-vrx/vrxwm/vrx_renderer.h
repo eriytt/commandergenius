@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "vr/gvr/capi/include/gvr.h"
-#include "vr/gvr/capi/include/gvr_audio.h"
 #include "vr/gvr/capi/include/gvr_types.h"
 #include "world_layout_data.h"
 
@@ -36,10 +35,8 @@ class VRXRenderer {
    * Create a VRXRenderer using a given |gvr_context|.
    *
    * @param gvr_api The (non-owned) gvr_context.
-   * @param gvr_audio_api The (owned) gvr::AudioApi context.
    */
-  VRXRenderer(gvr_context* gvr_context,
-                       std::unique_ptr<gvr::AudioApi> gvr_audio_api);
+  VRXRenderer(gvr_context* gvr_context);
 
   /**
    * Destructor.
@@ -125,15 +122,7 @@ class VRXRenderer {
    */
   bool IsLookingAtObject();
 
-  /**
-   * Preloads the cube sound sample and starts the spatialized playback at the
-   * current cube location. This method is executed from a separate thread to
-   * avoid any delay during construction and app initialization.
-   */
-  void LoadAndPlayCubeSound();
-
   std::unique_ptr<gvr::GvrApi> gvr_api_;
-  std::unique_ptr<gvr::AudioApi> gvr_audio_api_;
   std::unique_ptr<gvr::RenderParamsList> render_params_list_;
   std::unique_ptr<gvr::OffscreenFramebufferHandle> framebuffer_handle_;
 
@@ -180,10 +169,6 @@ class VRXRenderer {
   int score_;
   float object_distance_;
   float floor_depth_;
-
-  gvr::AudioSoundId sound_id_;
-
-  std::thread audio_initialization_thread_;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT
