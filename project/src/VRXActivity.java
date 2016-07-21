@@ -31,10 +31,13 @@ import android.view.WindowManager;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import com.towersmatrix.vrx.xserver.VRXServer;
+
 /**
  * A Gvr API sample application.
  */
 public class VRXActivity extends Activity {
+  private VRXServer xsrv = null;
   private GvrLayout gvrLayout;
   private long nativeVRXRenderer;
 
@@ -63,6 +66,13 @@ public class VRXActivity extends Activity {
 
     // Initialize GvrLayout and the native renderer.
     gvrLayout = new GvrLayout(this);
+
+    xsrv = new VRXServer();
+    try {
+      xsrv.launch();
+    } catch (Throwable t) {
+      throw new RuntimeException("xserver failed to launch", t);
+    }
     nativeVRXRenderer =
         nativeCreateRenderer(
             getClass().getClassLoader(),
@@ -153,6 +163,9 @@ public class VRXActivity extends Activity {
     // Destruction order is important; shutting down the GvrLayout will detach
     // the GLSurfaceView and stop the GL thread, allowing safe shutdown of
     // native resources from the UI thread.
+    if (xsrv != null)
+      xsrv.terminate();
+
     gvrLayout.shutdown();
     nativeDestroyRenderer(nativeVRXRenderer);
   }

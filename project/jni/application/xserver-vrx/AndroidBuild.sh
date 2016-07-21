@@ -42,8 +42,6 @@ cd $1
 env TARGET_DIR=/proc/self/cwd \
 ./build.sh || exit 1
 
-# hw/kdrive/vrx/vrx.o hw/kdrive/vrx/vrxinit.o hw/kdrive/vrx/kbd.o hw/kdrive/vrx/mouse.o hw/kdrive/vrx/os.o \
-
 linkcmd='\
 $CC $CFLAGS $LDFLAGS -o $CURDIR/libapplication-'"$1.so"' -L. \
 $CURDIR/main-'"$1.o"' \
@@ -71,6 +69,7 @@ xkb/.libs/libxkbstubs.a \
 composite/.libs/libcomposite.a \
 os/.libs/libos.a \
 hw/kdrive/linux/.libs/liblinux.a \
+-Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX \
 -lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so'
 
 echo "$linkcmd"
