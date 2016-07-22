@@ -50,6 +50,10 @@ public class VRXActivity extends Activity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    Unpacker up = new Unpacker(getFilesDir(), getAssets());
+    if (!up.verifyInstallation())
+	throw new RuntimeException("Runtime installation incomplete");
+
     // Ensure fullscreen immersion.
     setImmersiveSticky();
     getWindow()
