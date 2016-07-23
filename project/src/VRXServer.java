@@ -15,6 +15,21 @@ public class VRXServer implements Runnable{
     int exitcode = nativeRunX();
   }
 
+  public int getFBPtr(int retries) {
+    int ptr = 0;
+    while ((ptr = nativeGetFrameBufferPointer()) == 0 && --retries > 0)
+      try {
+	Thread.sleep(1000);
+      } catch (InterruptedException e){
+	return 0;
+      }
+    return ptr;
+  }
+
+  public int getFBPtr() {
+    return getFBPtr(5);
+  }
+
   public void launch() {
     t = new Thread(this, "Server thread");
     t.start();
@@ -25,4 +40,5 @@ public class VRXServer implements Runnable{
   }
 
   private native int nativeRunX();
+  private native int nativeGetFrameBufferPointer();
 }

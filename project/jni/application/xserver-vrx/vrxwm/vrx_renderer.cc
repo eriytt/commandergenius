@@ -261,8 +261,7 @@ static void CheckGLError(const char* label) {
 
 }  // namespace
 
-VRXRenderer::VRXRenderer(
-    gvr_context* gvr_context)
+VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
     : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
       floor_vertices_(nullptr),
       floor_colors_(nullptr),
@@ -273,27 +272,34 @@ VRXRenderer::VRXRenderer(
       cube_normals_(nullptr),
       light_pos_world_space_({0.0f, 2.0f, 0.0f, 1.0f}),
       object_distance_(3.5f),
-      floor_depth_(20.0f) {}
+      floor_depth_(20.0f),
+      framebuffer(fb)
+{
+  LOGI("Framebuffer @%p", fb);
+}
 
 VRXRenderer::~VRXRenderer() {
 }
 
-static GLuint CreateTexture(int size)
+static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
 {
-  uint8_t * source_buf = new uint8_t[size * size * 3];
+  uint8_t * source_buf = framebuffer;
 
-  LOGI("Creating dummy texture");
-  for (int x = 0; x < size; ++x)
-    for (int y = 0; y < size; ++y)
-      {
-	unsigned int pixel_index = (x * size + y);
-	LOGD("Setting pixel %d (@%d)", pixel_index, pixel_index * 3);
-	uint8_t *pixel = &source_buf[pixel_index * 3];
-	pixel[0] = static_cast<uint8_t>(0xff);
-	pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
-	pixel[2] = static_cast<uint8_t>((x + y) & 0xff);
-      }
-  LOGI("Texture data initialized");  
+  if (not source_buf)
+    {
+      LOGI("Creating dummy texture");
+      source_buf = new uint8_t[size * size * 3];
+      for (int x = 0; x < size; ++x)
+	for (int y = 0; y < size; ++y)
+	  {
+	    unsigned int pixel_index = (x * size + y);
+	    uint8_t *pixel = &source_buf[pixel_index * 3];
+	    pixel[0] = static_cast<uint8_t>(0xff);
+	    pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
+	    pixel[2] = static_cast<uint8_t>((x + y) & 0xff);
+	  }
+      LOGI("Texture data initialized");
+    }
   
   GLuint tex_id;
   glGenTextures(1, &tex_id);
@@ -323,7 +329,7 @@ void VRXRenderer::InitializeGl() {
   floor_normals_ = world_layout_data_.FLOOR_NORMALS.data();
   floor_colors_ = world_layout_data_.FLOOR_COLORS.data();
 
-  texname = CreateTexture(1024);
+  texname = CreateTexture(1024, framebuffer);
 
   int vertex_shader = LoadGLShader(GL_VERTEX_SHADER, &kLightVertexShader);
   int grid_shader = LoadGLShader(GL_FRAGMENT_SHADER, &kGridFragmentShader);

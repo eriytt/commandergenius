@@ -36,7 +36,7 @@ class VRXRenderer {
    *
    * @param gvr_api The (non-owned) gvr_context.
    */
-  VRXRenderer(gvr_context* gvr_context);
+  VRXRenderer(gvr_context* gvr_context, unsigned char *fb);
 
   /**
    * Destructor.
@@ -173,6 +173,7 @@ class VRXRenderer {
   float floor_depth_;
 
   GLuint texname;
+  unsigned char *framebuffer;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

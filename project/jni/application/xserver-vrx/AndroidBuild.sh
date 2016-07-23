@@ -69,7 +69,7 @@ xkb/.libs/libxkbstubs.a \
 composite/.libs/libcomposite.a \
 os/.libs/libos.a \
 hw/kdrive/linux/.libs/liblinux.a \
--Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX \
+-Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeGetFrameBufferPointer \
 -lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so'
 
 echo "$linkcmd"

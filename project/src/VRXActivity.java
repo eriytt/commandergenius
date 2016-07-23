@@ -54,6 +54,13 @@ public class VRXActivity extends Activity {
     if (!up.verifyInstallation())
 	throw new RuntimeException("Runtime installation incomplete");
 
+    xsrv = new VRXServer();
+    try {
+      xsrv.launch();
+    } catch (Throwable t) {
+      throw new RuntimeException("xserver failed to launch", t);
+    }
+
     // Ensure fullscreen immersion.
     setImmersiveSticky();
     getWindow()
@@ -71,16 +78,15 @@ public class VRXActivity extends Activity {
     // Initialize GvrLayout and the native renderer.
     gvrLayout = new GvrLayout(this);
 
-    xsrv = new VRXServer();
-    try {
-      xsrv.launch();
-    } catch (Throwable t) {
-      throw new RuntimeException("xserver failed to launch", t);
-    }
+    int fbptr = xsrv.getFBPtr();
+    if (fbptr == 0)
+	throw new RuntimeException("xserver failed to alloc framebuffer");
+
     nativeVRXRenderer =
         nativeCreateRenderer(
             getClass().getClassLoader(),
             this.getApplicationContext(),
+	    fbptr,
             gvrLayout.getGvrApi().getNativeGvrContext());
 
     // Add the GLSurfaceView to the GvrLayout.
@@ -194,8 +200,10 @@ public class VRXActivity extends Activity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
   }
 
-  private native long nativeCreateRenderer(
-      ClassLoader appClassLoader, Context context, long nativeGvrContext);
+  private native long nativeCreateRenderer(ClassLoader appClassLoader,
+					   Context context,
+					   long frameBuffer,
+					   long nativeGvrContext);
   private native void nativeDestroyRenderer(long nativeVRXRenderer);
   private native void nativeInitializeGl(long nativeVRXRenderer);
   private native long nativeDrawFrame(long nativeVRXRenderer);
