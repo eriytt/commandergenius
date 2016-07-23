@@ -70,7 +70,7 @@ class VRXRenderer {
   void OnResume();
 
  private:
-  int CreateTexture(int width, int height, int textureFormat, int textureType);
+  //int CreateTexture(int width, int height, int textureFormat, int textureType);
 
   /**
    * Converts a raw text file, saved as a resource, into an OpenGL ES shader.
@@ -133,6 +133,7 @@ class VRXRenderer {
   float* floor_colors_;
   float* floor_normals_;
   float* cube_vertices_;
+  float *cube_tex_coords_;
   float* cube_colors_;
   float* cube_found_colors_;
   float* cube_normals_;
@@ -141,6 +142,7 @@ class VRXRenderer {
   int floor_program_;
   int cube_position_param_;
   int cube_normal_param_;
+  int cube_tex_coord_param_;
   int cube_color_param_;
   int cube_model_param_;
   int cube_modelview_param_;
@@ -169,6 +171,8 @@ class VRXRenderer {
   int score_;
   float object_distance_;
   float floor_depth_;
+
+  GLuint texname;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

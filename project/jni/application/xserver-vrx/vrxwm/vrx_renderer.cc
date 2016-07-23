@@ -21,7 +21,14 @@
 #include <random>
 
 #define LOG_TAG "VRXCPP"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+
+#define CHECK(condition) if (!(condition)) { \
+        LOGE("*** CHECK FAILED at %s:%d: %s", __FILE__, __LINE__, #condition); \
+        abort(); }
 
 namespace {
 static const int kTextureFormat = GL_RGB;
@@ -51,40 +58,83 @@ static const char* kGridFragmentShader =
     "    }\n"
     "}\n";
 
+// static const char* kLightVertexShader =
+//     "uniform mat4 u_Model;\n"
+//     "uniform mat4 u_MVP;\n"
+//     "uniform mat4 u_MVMatrix;\n"
+//     "uniform vec3 u_LightPos;\n"
+//     "attribute vec4 a_Position;\n"
+//     "\n"
+//     "attribute vec4 a_Color;\n"
+//     "attribute vec3 a_Normal;\n"
+//     "\n"
+//     "varying vec4 v_Color;\n"
+//     "varying vec3 v_Grid;\n"
+//     "\n"
+//     "void main() {\n"
+//     "  v_Grid = vec3(u_Model * a_Position);\n"
+//     "  vec3 modelViewVertex = vec3(u_MVMatrix * a_Position);\n"
+//     "  vec3 modelViewNormal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));\n"
+//     "  float distance = length(u_LightPos - modelViewVertex);\n"
+//     "  vec3 lightVector = normalize(u_LightPos - modelViewVertex);\n"
+//     "  float diffuse = max(dot(modelViewNormal, lightVector), 0.5);\n"
+//     "  diffuse = diffuse * (1.0 / (1.0 + (0.00001 * distance * distance)));\n"
+//     "  v_Color = a_Color * diffuse;\n"
+//     "  gl_Position = u_MVP * a_Position;\n"
+//     "}\n";
+
 static const char* kLightVertexShader =
-    "uniform mat4 u_Model;\n"
-    "uniform mat4 u_MVP;\n"
-    "uniform mat4 u_MVMatrix;\n"
-    "uniform vec3 u_LightPos;\n"
-    "attribute vec4 a_Position;\n"
-    "\n"
-    "attribute vec4 a_Color;\n"
-    "attribute vec3 a_Normal;\n"
-    "\n"
-    "varying vec4 v_Color;\n"
-    "varying vec3 v_Grid;\n"
-    "\n"
-    "void main() {\n"
-    "  v_Grid = vec3(u_Model * a_Position);\n"
-    "  vec3 modelViewVertex = vec3(u_MVMatrix * a_Position);\n"
-    "  vec3 modelViewNormal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));\n"
-    "  float distance = length(u_LightPos - modelViewVertex);\n"
-    "  vec3 lightVector = normalize(u_LightPos - modelViewVertex);\n"
-    "  float diffuse = max(dot(modelViewNormal, lightVector), 0.5);\n"
-    "  diffuse = diffuse * (1.0 / (1.0 + (0.00001 * distance * distance)));\n"
-    "  v_Color = a_Color * diffuse;\n"
-    "  gl_Position = u_MVP * a_Position;\n"
-    "}\n";
+  "uniform mat4 u_Model;\n"
+  "uniform mat4 u_MVP;\n"
+  "uniform mat4 u_MVMatrix;\n"
+  "uniform vec3 u_LightPos;\n"
+  "attribute vec4 a_Position;\n"
+  "\n"
+  "attribute vec4 a_Color;\n"
+  "attribute vec2 a_Texcoord;\n"
+  "attribute vec3 a_Normal;\n"
+  "\n"
+  "varying vec4 v_Color;\n"
+  "varying vec3 v_Grid;\n"
+  "\n"
+  "varying vec2 v_Texcoord;\n"
+  "\n"
+  "void main() {\n"
+  "  v_Texcoord = a_Texcoord;\n"
+  "  v_Grid = vec3(u_Model * a_Position);\n"
+  "  vec3 modelViewVertex = vec3(u_MVMatrix * a_Position);\n"
+  "  vec3 modelViewNormal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));\n"
+  "  float distance = length(u_LightPos - modelViewVertex);\n"
+  "  vec3 lightVector = normalize(u_LightPos - modelViewVertex);\n"
+  "  float diffuse = max(dot(modelViewNormal, lightVector), 0.5);\n"
+  "  diffuse = diffuse * (1.0 / (1.0 + (0.00001 * distance * distance)));\n"
+  "  v_Color = a_Color * diffuse;\n"
+  "  gl_Position = u_MVP * a_Position;\n"
+  "}\n";
+  
+// static const char* kPassthroughFragmentShader =
+//     "precision mediump float;\n"
+//     "\n"
+//     "varying vec4 v_Color;\n"
+//     "\n"
+//     "void main() {\n"
+//     "  gl_FragColor = v_Color;\n"
+//     "}\n";
 
 static const char* kPassthroughFragmentShader =
-    "precision mediump float;\n"
-    "\n"
-    "varying vec4 v_Color;\n"
-    "\n"
-    "void main() {\n"
-    "  gl_FragColor = v_Color;\n"
-    "}\n";
+  "precision mediump float;\n"
+  "uniform sampler2D u_Texture;\n"
+  "varying vec2 v_Texcoord;\n"
+  "\n"
+  "varying vec4 v_Color;\n"
+  "\n"
+  "void main() {\n"
+  //"  gl_FragColor = v_Color;\n"
+  //"  gl_FragColor = v_Color * texture2D(u_Texture, v_Texcoord);\n"
+  "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
+  "}\n";
 
+  
 static std::array<float, 16> MatrixToGLArray(const gvr::Mat4f& matrix) {
   // Note that this performs a *tranpose* to a column-major matrix array, as
   // expected by GL.
@@ -228,18 +278,52 @@ VRXRenderer::VRXRenderer(
 VRXRenderer::~VRXRenderer() {
 }
 
+static GLuint CreateTexture(int size)
+{
+  uint8_t * source_buf = new uint8_t[size * size * 3];
+
+  LOGI("Creating dummy texture");
+  for (int x = 0; x < size; ++x)
+    for (int y = 0; y < size; ++y)
+      {
+	unsigned int pixel_index = (x * size + y);
+	LOGD("Setting pixel %d (@%d)", pixel_index, pixel_index * 3);
+	uint8_t *pixel = &source_buf[pixel_index * 3];
+	pixel[0] = static_cast<uint8_t>(0xff);
+	pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
+	pixel[2] = static_cast<uint8_t>((x + y) & 0xff);
+      }
+  LOGI("Texture data initialized");  
+  
+  GLuint tex_id;
+  glGenTextures(1, &tex_id);
+  glBindTexture(GL_TEXTURE_2D, tex_id);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size, size, 0, GL_RGB,
+               GL_UNSIGNED_BYTE, source_buf);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glBindTexture(GL_TEXTURE_2D, 0);
+  CHECK(glGetError() == GL_NO_ERROR);
+  delete[] source_buf;
+  LOGI("Creating dummy texture done");
+  return tex_id;
+}
+
 void VRXRenderer::InitializeGl() {
   gvr_api_->InitializeGl();
 
   glClearColor(0.1f, 0.1f, 0.1f, 0.5f);  // Dark background so text shows up.
 
   cube_vertices_ = world_layout_data_.CUBE_COORDS.data();
+  cube_tex_coords_ = world_layout_data_.CUBE_TEX_COORDS.data();
   cube_colors_ = world_layout_data_.CUBE_COLORS.data();
   cube_found_colors_ = world_layout_data_.CUBE_FOUND_COLORS.data();
   cube_normals_ = world_layout_data_.CUBE_NORMALS.data();
   floor_vertices_ = world_layout_data_.FLOOR_COORDS.data();
   floor_normals_ = world_layout_data_.FLOOR_NORMALS.data();
   floor_colors_ = world_layout_data_.FLOOR_COLORS.data();
+
+  texname = CreateTexture(1024);
 
   int vertex_shader = LoadGLShader(GL_VERTEX_SHADER, &kLightVertexShader);
   int grid_shader = LoadGLShader(GL_FRAGMENT_SHADER, &kGridFragmentShader);
@@ -254,6 +338,7 @@ void VRXRenderer::InitializeGl() {
 
   cube_position_param_ = glGetAttribLocation(cube_program_, "a_Position");
   cube_normal_param_ = glGetAttribLocation(cube_program_, "a_Normal");
+  cube_tex_coord_param_ = glGetAttribLocation(cube_program_, "a_Texcoord");
   cube_color_param_ = glGetAttribLocation(cube_program_, "a_Color");
 
   cube_model_param_ = glGetUniformLocation(cube_program_, "u_Model");
@@ -428,6 +513,13 @@ void VRXRenderer::DrawCube() {
   glVertexAttribPointer(cube_position_param_, kCoordsPerVertex, GL_FLOAT,
                         false, 0, cube_vertices_);
 
+  // Set texture
+  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT,
+			false, 0, cube_tex_coords_);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texname);
+
+
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(cube_modelview_projection_param_, 1, GL_FALSE,
                      MatrixToGLArray(modelview_projection_cube_).data());
@@ -441,9 +533,11 @@ void VRXRenderer::DrawCube() {
   glEnableVertexAttribArray(cube_position_param_);
   glEnableVertexAttribArray(cube_normal_param_);
   glEnableVertexAttribArray(cube_color_param_);
+  glEnableVertexAttribArray(cube_tex_coord_param_);
 
   glDrawArrays(GL_TRIANGLES, 0, 36);
   CheckGLError("Drawing cube");
+  glActiveTexture(GL_TEXTURE0);
 }
 
 void VRXRenderer::DrawFloor() {

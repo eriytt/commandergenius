@@ -42,6 +42,7 @@ class WorldLayoutData {
  public:
   std::array<float, 108> CUBE_COORDS;
   std::array<float, 144> CUBE_COLORS;
+  std::array<float, 72> CUBE_TEX_COORDS;
   std::array<float, 144> CUBE_FOUND_COLORS;
   std::array<float, 108> CUBE_NORMALS;
   std::array<float, 72> FLOOR_COORDS;
@@ -97,6 +98,51 @@ class WorldLayoutData {
        1.0f, -1.0f,  1.0f,
       -1.0f, -1.0f,  1.0f,
       -1.0f, -1.0f, -1.0f,
+      }};
+
+        CUBE_TEX_COORDS = {{
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
+
       }};
 
     CUBE_COLORS = {{
