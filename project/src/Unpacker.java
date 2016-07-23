@@ -69,7 +69,7 @@ public class Unpacker {
 	  try {
 	    Runtime.getRuntime().exec(cmd, null, installDir).waitFor();
 	  } catch (InterruptedException e) {
-	    Log.e("Interrupted while waiting for untar to finish");
+	    Log.e("VRX", "Interrupted while waiting for untar to finish");
 	    return false;
 	  }
 	} catch (IOException e) {
@@ -122,7 +122,7 @@ public class Unpacker {
       Runtime.getRuntime().exec(chmod).waitFor();
     } catch (InterruptedException e) {
       // TODO: what to do to bail?
-      Log.e("Interrupted while setting execute permissions for " + path);
+      Log.e("VRX", "Interrupted while setting execute permissions for " + path);
     }
   }
 
