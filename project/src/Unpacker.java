@@ -43,6 +43,10 @@ public class Unpacker {
     Log.i("VRX", "Setting execute permissions");
     try {
       setExecutable("busybox");
+      setExecutable("/usr/bin/xkbcomp");
+      setExecutable("/usr/bin/xhost");
+      setExecutable("/usr/bin/xli");
+      setExecutable("/usr/bin/xsel");
     } catch (IOException e) {
       Log.e("VRX", "Could not set execute permissions: " + e.toString());
       return false;
@@ -62,11 +66,12 @@ public class Unpacker {
 
 	String cmd[] = {installDir + File.separator +  "busybox", "tar", "-xf", name};
 	try {
-	  Runtime.getRuntime().exec(cmd, null, installDir);
-	  setExecutable("/usr/bin/xkbcomp");
-	  setExecutable("/usr/bin/xhost");
-	  setExecutable("/usr/bin/xli");
-	  setExecutable("/usr/bin/xsel");
+	  try {
+	    Runtime.getRuntime().exec(cmd, null, installDir).waitFor();
+	  } catch (InterruptedException e) {
+	    Log.e("Interrupted while waiting for untar to finish");
+	    return false;
+	  }
 	} catch (IOException e) {
 	  Log.e("VRX", "Could not untar resource data with command '"
 		+ TextUtils.join(" ", cmd) + ": " + e.toString());
@@ -115,7 +120,10 @@ public class Unpacker {
     Log.i("VRX", "Set execute permission on " + path + " (" + p + ")");
     try {
       Runtime.getRuntime().exec(chmod).waitFor();
-    } catch (InterruptedException e) { /* TODO: what to do? */ }
+    } catch (InterruptedException e) {
+      // TODO: what to do to bail?
+      Log.e("Interrupted while setting execute permissions for " + path);
+    }
   }
 
   private void copyAsset(String name) throws IOException {
