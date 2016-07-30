@@ -300,7 +300,7 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
 	  }
       LOGI("Texture data initialized");
     }
-  
+
   GLuint tex_id;
   glGenTextures(1, &tex_id);
   glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -310,8 +310,9 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glBindTexture(GL_TEXTURE_2D, 0);
   CHECK(glGetError() == GL_NO_ERROR);
-  //delete[] source_buf;
-  LOGI("Creating dummy texture done");
+  if (not framebuffer)
+    delete[] source_buf;
+  LOGI("Creating texture done");
   return tex_id;
 }
 
