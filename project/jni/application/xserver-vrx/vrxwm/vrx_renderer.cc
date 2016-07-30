@@ -310,7 +310,7 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glBindTexture(GL_TEXTURE_2D, 0);
   CHECK(glGetError() == GL_NO_ERROR);
-  delete[] source_buf;
+  //delete[] source_buf;
   LOGI("Creating dummy texture done");
   return tex_id;
 }
@@ -395,6 +395,11 @@ void VRXRenderer::InitializeGl() {
 }
 
 void VRXRenderer::DrawFrame() {
+  int size = 1024;
+  glBindTexture(GL_TEXTURE_2D, texname);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size, size, 0, GL_RGB,
+               GL_UNSIGNED_BYTE, framebuffer);
+
   render_params_list_->SetToRecommendedRenderParams();
   framebuffer_handle_->SetActive();
 
