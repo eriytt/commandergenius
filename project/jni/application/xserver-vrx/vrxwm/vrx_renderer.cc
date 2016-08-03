@@ -288,15 +288,16 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
   if (not source_buf)
     {
       LOGI("Creating dummy texture");
-      source_buf = new uint8_t[size * size * 3];
+      source_buf = new uint8_t[size * size * 4];
       for (int x = 0; x < size; ++x)
 	for (int y = 0; y < size; ++y)
 	  {
 	    unsigned int pixel_index = (x * size + y);
-	    uint8_t *pixel = &source_buf[pixel_index * 3];
+	    uint8_t *pixel = &source_buf[pixel_index * 4];
 	    pixel[0] = static_cast<uint8_t>(0xff);
 	    pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
 	    pixel[2] = static_cast<uint8_t>((x + y) & 0xff);
+	    pixel[3] = static_cast<uint8_t>(0xff);
 	  }
       LOGI("Texture data initialized");
     }
@@ -304,7 +305,7 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
   GLuint tex_id;
   glGenTextures(1, &tex_id);
   glBindTexture(GL_TEXTURE_2D, tex_id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size, size, 0, GL_RGB,
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, source_buf);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -398,7 +399,7 @@ void VRXRenderer::InitializeGl() {
 void VRXRenderer::DrawFrame() {
   int size = 1024;
   glBindTexture(GL_TEXTURE_2D, texname);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size, size, 0, GL_RGB,
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, framebuffer);
 
   render_params_list_->SetToRecommendedRenderParams();
