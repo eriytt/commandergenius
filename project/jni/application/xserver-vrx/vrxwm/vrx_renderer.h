@@ -87,7 +87,7 @@ class VRXRenderer {
    * @param eye The eye to render. Includes all required transformations.
    */
   void DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-               const gvr::RenderParams& params);
+               const gvr::BufferViewport& params);
 
   /**
    * Draw the cube.
@@ -123,8 +123,9 @@ class VRXRenderer {
   bool IsLookingAtObject();
 
   std::unique_ptr<gvr::GvrApi> gvr_api_;
-  std::unique_ptr<gvr::RenderParamsList> render_params_list_;
-  std::unique_ptr<gvr::OffscreenFramebufferHandle> framebuffer_handle_;
+  std::unique_ptr<gvr::BufferViewportList> viewport_list_;
+  std::unique_ptr<gvr::SwapChain> swapchain_;
+  gvr::BufferViewport scratch_viewport_;
 
   std::vector<float> lightpos_;
 
@@ -158,7 +159,7 @@ class VRXRenderer {
 
   std::array<float, 4> light_pos_world_space_;
   std::array<float, 4> light_pos_eye_space_;
-  gvr::HeadPose head_pose_;
+  gvr::Mat4f head_pose_;
   gvr::Mat4f model_cube_;
   gvr::Mat4f camera_;
   gvr::Mat4f view_;

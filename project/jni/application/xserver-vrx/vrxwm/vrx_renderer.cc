@@ -20,7 +20,7 @@
 #include <cmath>
 #include <random>
 
-#define LOG_TAG "VRXCPP"
+#define LOG_TAG "VRXWM"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -147,24 +147,6 @@ static std::array<float, 16> MatrixToGLArray(const gvr::Mat4f& matrix) {
   return result;
 }
 
-static gvr::Mat4f PoseToMatrix(const gvr::HeadPose& head_pose) {
-  gvr::Mat4f result;
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      result.m[i][j] = head_pose.rotation.m[i][j];
-    }
-  }
-  result.m[0][3] = head_pose.position.x;
-  result.m[1][3] = head_pose.position.y;
-  result.m[2][3] = head_pose.position.z;
-  result.m[3][0] = 0.0f;
-  result.m[3][1] = 0.0f;
-  result.m[3][2] = 0.0f;
-  result.m[3][3] = 1.0f;
-
-  return result;
-}
-
 static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
                                             const std::array<float, 4>& vec) {
   std::array<float, 4> result;
@@ -263,6 +245,7 @@ static void CheckGLError(const char* label) {
 
 VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
     : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
+      scratch_viewport_(gvr_api_->CreateBufferViewport()),
       floor_vertices_(nullptr),
       floor_colors_(nullptr),
       floor_normals_(nullptr),
@@ -389,11 +372,16 @@ void VRXRenderer::InitializeGl() {
 
   render_size_ = gvr_api_->GetRecommendedRenderTargetSize();
 
-  framebuffer_handle_.reset(new gvr::OffscreenFramebufferHandle(
-      gvr_api_->CreateOffscreenFramebuffer(render_size_)));
+  std::vector<gvr::BufferSpec> specs;
+  specs.push_back(gvr_api_->CreateBufferSpec());
+  specs[0].SetSize(render_size_);
+  specs[0].SetColorFormat(GVR_COLOR_FORMAT_RGBA_8888);
+  specs[0].SetDepthStencilFormat(GVR_DEPTH_STENCIL_FORMAT_DEPTH_16);
+  specs[0].SetSamples(2);
+  swapchain_.reset(new gvr::SwapChain(gvr_api_->CreateSwapchain(specs)));
 
-  render_params_list_.reset(new gvr::RenderParamsList(
-      gvr_api_->CreateEmptyRenderParamsList()));
+  viewport_list_.reset(new gvr::BufferViewportList(
+      gvr_api_->CreateEmptyBufferViewportList()));
 }
 
 void VRXRenderer::DrawFrame() {
@@ -402,34 +390,31 @@ void VRXRenderer::DrawFrame() {
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, framebuffer);
 
-  render_params_list_->SetToRecommendedRenderParams();
-  framebuffer_handle_->SetActive();
+  viewport_list_->SetToRecommendedBufferViewports();
+  gvr::Frame frame = swapchain_->AcquireFrame();
 
   // A client app does its rendering here.
   gvr::ClockTimePoint target_time = gvr::GvrApi::GetTimePointNow();
   target_time.monotonic_system_time_nanos +=
       kPredictionTimeWithoutVsyncNanos;
+
   head_pose_ = gvr_api_->GetHeadPoseInStartSpace(target_time);
+  gvr::Mat4f left_eye_view_pose =
+      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_LEFT_EYE), head_pose_);
+  gvr::Mat4f right_eye_view_pose =
+      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE), head_pose_);
 
-  gvr::Mat4f left_eye_view_matrix =
-      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_LEFT_EYE),
-                head_pose_.object_from_reference_matrix);
-  gvr::Mat4f right_eye_view_matrix =
-      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE),
-                head_pose_.object_from_reference_matrix);
-
+  frame.BindBuffer(0);
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_SCISSOR_TEST);
-  DrawEye(GVR_LEFT_EYE, left_eye_view_matrix,
-          render_params_list_->GetRenderParams(0));
-  DrawEye(GVR_RIGHT_EYE, right_eye_view_matrix,
-          render_params_list_->GetRenderParams(1));
+  viewport_list_->GetBufferViewport(0, &scratch_viewport_);
+  DrawEye(GVR_LEFT_EYE, left_eye_view_pose, scratch_viewport_);
+  viewport_list_->GetBufferViewport(1, &scratch_viewport_);
+  DrawEye(GVR_RIGHT_EYE, right_eye_view_pose, scratch_viewport_);
 
   // Bind back to the default framebuffer.
-  gvr_api_->SetDefaultFramebufferActive();
-
-  gvr_api_->DistortOffscreenFramebufferToScreen(
-      *framebuffer_handle_, *render_params_list_, &head_pose_, &target_time);
+  frame.Unbind();
+  frame.Submit(*viewport_list_, head_pose_);
 
   CheckGLError("onDrawFrame");
 }
@@ -480,9 +465,9 @@ int VRXRenderer::LoadGLShader(int type, const char** shadercode) {
  * @param eye The eye to render. Includes all required transformations.
  */
 void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-                                   const gvr::RenderParams& params) {
+                                   const gvr::BufferViewport& params) {
   const gvr::Recti pixel_rect =
-      CalculatePixelSpaceRect(render_size_, params.eye_viewport_bounds);
+    CalculatePixelSpaceRect(render_size_, params.GetSourceUv());
 
   glViewport(pixel_rect.left, pixel_rect.bottom,
              pixel_rect.right - pixel_rect.left,
@@ -497,7 +482,7 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   // Set the position of the light
   light_pos_eye_space_  = MatrixVectorMul(view_matrix, light_pos_world_space_);
   gvr::Mat4f perspective =
-      PerspectiveMatrixFromView(params.eye_fov, kZNear, kZFar);
+    PerspectiveMatrixFromView(params.GetSourceFov(), kZNear, kZFar);
 
   modelview_ = MatrixMul(view_matrix, model_cube_);
   modelview_projection_cube_ = MatrixMul(perspective, modelview_);
@@ -621,7 +606,7 @@ bool VRXRenderer::IsLookingAtObject() {
   static const float kYawLimit = 0.12f;
 
   gvr::Mat4f modelview =
-      MatrixMul(head_pose_.object_from_reference_matrix, model_cube_);
+      MatrixMul(head_pose_, model_cube_);
 
   std::array<float, 4> temp_position =
       MatrixVectorMul(modelview, {0.f, 0.f, 0.f, 1.f});
