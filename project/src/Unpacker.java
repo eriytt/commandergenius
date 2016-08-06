@@ -31,7 +31,7 @@ public class Unpacker {
       {
 	Log.i("VRX", "Extracting binaries");
 	try {
-	  ZipInputStream zis = new ZipInputStream(amgr.open("binaries-armeabi-v7a.zip"));
+	  ZipInputStream zis = new ZipInputStream(amgr.open("binaries-armeabi-v7a-pie.zip"));
 	  unzip(zis);
 	  zis.close();
 	} catch (IOException e) {
