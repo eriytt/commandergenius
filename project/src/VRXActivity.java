@@ -55,7 +55,7 @@ public class VRXActivity extends Activity {
     if (!up.verifyInstallation())
 	throw new RuntimeException("Runtime installation incomplete");
 
-    xsrv = new VRXServer();
+    xsrv = new VRXServer(getFilesDir().getPath());
     try {
       xsrv.launch();
     } catch (Throwable t) {

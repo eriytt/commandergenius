@@ -225,8 +225,8 @@ static float RandomUniformFloat() {
 }
 
 static void CheckGLError(const char* label) {
-  int gl_error = glGetError();
-  if (gl_error != GL_NO_ERROR) {
+  int gl_error;
+  while ( (gl_error=glGetError()) != GL_NO_ERROR) {
     LOGW("GL error @ %s: %d", label, gl_error);
   }
   assert(glGetError() == GL_NO_ERROR);
@@ -508,11 +508,13 @@ void VRXRenderer::DrawCube() {
   // Set the position of the cube
   glVertexAttribPointer(cube_position_param_, kCoordsPerVertex, GL_FLOAT,
                         false, 0, cube_vertices_);
+  glEnableVertexAttribArray(cube_position_param_);
 
   // Set texture
-  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT,
-			false, 0, cube_tex_coords_);
+  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT, false, 0, cube_tex_coords_);
+  glEnableVertexAttribArray(cube_tex_coord_param_);
   glActiveTexture(GL_TEXTURE0);
+
   glBindTexture(GL_TEXTURE_2D, texname);
 
 
@@ -520,16 +522,19 @@ void VRXRenderer::DrawCube() {
   glUniformMatrix4fv(cube_modelview_projection_param_, 1, GL_FALSE,
                      MatrixToGLArray(modelview_projection_cube_).data());
 
+  // The parameters below are sometimes optimized away, and not available
   // Set the normal positions of the cube, again for shading
-  glVertexAttribPointer(
-      cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
-  glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-                        IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+  if( cube_normal_param_ != -1 ){
+    glVertexAttribPointer( cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
+    glEnableVertexAttribArray(cube_normal_param_);
+  }
 
-  glEnableVertexAttribArray(cube_position_param_);
-  glEnableVertexAttribArray(cube_normal_param_);
-  glEnableVertexAttribArray(cube_color_param_);
-  glEnableVertexAttribArray(cube_tex_coord_param_);
+  if( cube_color_param_ != -1 ){
+    glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
+                        IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+    glEnableVertexAttribArray(cube_color_param_);
+  }
+
 
   glDrawArrays(GL_TRIANGLES, 0, 36);
   CheckGLError("Drawing cube");
