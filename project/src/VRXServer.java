@@ -6,13 +6,15 @@ public class VRXServer implements Runnable{
   }
 
   private Thread t = null;
+  String mFilesDirectory;
 
-  public VRXServer() {
+  public VRXServer(String filesDirectory) {
     super();
+    mFilesDirectory = filesDirectory;
   }
 
   public void run() {
-    int exitcode = nativeRunX();
+    int exitcode = nativeRunX(mFilesDirectory);
   }
 
   public int getFBPtr(int retries) {
@@ -39,6 +41,6 @@ public class VRXServer implements Runnable{
     // TODO: implement me
   }
 
-  private native int nativeRunX();
+  private native int nativeRunX(String filesDirectory);
   private native int nativeGetFrameBufferPointer();
 }
