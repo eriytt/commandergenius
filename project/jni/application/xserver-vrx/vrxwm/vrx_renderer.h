@@ -28,6 +28,7 @@
 #include "vr/gvr/capi/include/gvr.h"
 #include "vr/gvr/capi/include/gvr_types.h"
 #include "world_layout_data.h"
+#include "wm.h"
 
 class VRXRenderer {
  public:
@@ -175,6 +176,8 @@ class VRXRenderer {
 
   GLuint texname;
   unsigned char *framebuffer;
+
+  std::unique_ptr<WindowManager> wm;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

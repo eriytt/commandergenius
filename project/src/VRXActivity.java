@@ -43,6 +43,7 @@ public class VRXActivity extends Activity {
 
   static {
     System.loadLibrary("gvr");
+    System.loadLibrary("X11");
     System.loadLibrary("vrxwm");
   }
 

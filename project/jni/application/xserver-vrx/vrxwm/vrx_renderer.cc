@@ -15,20 +15,11 @@
 
 #include "vrx_renderer.h"
 
-#include <android/log.h>
 #include <assert.h>
 #include <cmath>
 #include <random>
 
-#define LOG_TAG "VRXWM"
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-
-#define CHECK(condition) if (!(condition)) { \
-        LOGE("*** CHECK FAILED at %s:%d: %s", __FILE__, __LINE__, #condition); \
-        abort(); }
+#include "common.h"
 
 namespace {
 static const int kTextureFormat = GL_RGB;
@@ -256,7 +247,8 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
       light_pos_world_space_({0.0f, 2.0f, 0.0f, 1.0f}),
       object_distance_(3.5f),
       floor_depth_(20.0f),
-      framebuffer(fb)
+      framebuffer(fb),
+      wm(nullptr)
 {
   LOGI("Framebuffer @%p", fb);
 }
@@ -382,6 +374,12 @@ void VRXRenderer::InitializeGl() {
 
   viewport_list_.reset(new gvr::BufferViewportList(
       gvr_api_->CreateEmptyBufferViewportList()));
+
+  wm = WindowManager::Create(":0");
+  // TODO: bail if this happens
+  if (!wm)
+    LOGE("Failed to initialize window manager");
+
 }
 
 void VRXRenderer::DrawFrame() {

@@ -17,7 +17,7 @@
 
 lib_LTLIBRARIES = libvrxwm.la
 
-libvrxwm_la_SOURCES = vrx_jni.cc  vrx_renderer.cc vrx_renderer.h  world_layout_data.h
+libvrxwm_la_SOURCES = vrx_jni.cc  vrx_renderer.cc vrx_renderer.h  world_layout_data.h wm.cpp wm.h wm-util.cpp wm-util.h common.h
 
 relink:
 	rm -f $(noinst_LTLIBRARIES) && make $(noinst_LTLIBRARIES)

@@ -45,7 +45,7 @@ cd $builddir
 #export
 
 LDFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -L$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH -L$GVRNDK/lib/$NDK_ARCH -lgnustl_shared -llog -lEGL -lGLESv2 -lgvr"
-CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -D__ANDROID__ -std=c++11"
+CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -I../../xserver/android/$ARCH -D__ANDROID__ -std=c++11"
 
 [ -e Makefile ] || \
     LDFLAGS="$LDFLAGS" \
