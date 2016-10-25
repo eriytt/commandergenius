@@ -70,7 +70,11 @@ class VRXRenderer {
   void OnResume();
 
  private:
-  //int CreateTexture(int width, int height, int textureFormat, int textureType);
+
+  /*
+   * Prepares the GvrApi framebuffer for rendering, resizing if needed.
+   */
+  void PrepareFramebuffer();
 
   /**
    * Converts a raw text file, saved as a resource, into an OpenGL ES shader.
@@ -159,7 +163,7 @@ class VRXRenderer {
 
   std::array<float, 4> light_pos_world_space_;
   std::array<float, 4> light_pos_eye_space_;
-  gvr::Mat4f head_pose_;
+  gvr::Mat4f head_view_;
   gvr::Mat4f model_cube_;
   gvr::Mat4f camera_;
   gvr::Mat4f view_;
