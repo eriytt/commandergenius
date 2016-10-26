@@ -115,7 +115,7 @@ NDK=`readlink -f $NDK`
 [ -z "$PLATFORMVER" ] && PLATFORMVER=android-19
 
 GVRSDK=$NDK/../gvr-android-sdk
-GVRNDK=$GVRSDK/ndk-beta
+GVRNDK=$GVRSDK/ndk
 
 echo exporting GCCVER=$NDK_TOOLCHAIN_VERSION
 
@@ -191,6 +191,11 @@ strip_libs() {
 }
 
 ANTPROPS="-Dgvr.sdk=$GVRSDK"
+
+PROTOBUF_JAR="protobuf-javanano-3.0.0-alpha-7.jar"
+if [ ! -f project/lib/$PROTOBUF_JAR ]; then
+   wget -O project/lib/$PROTOBUF_JAR http://central.maven.org/maven2/com/google/protobuf/nano/protobuf-javanano/3.0.0-alpha-7/$PROTOBUF_JAR
+fi
 
 cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j$NCPU V=1 && \
 	strip_libs && \

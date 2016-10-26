@@ -8,7 +8,7 @@ fi
 echo "Building vrxwm for $1"
 
 GVRSDK=$NDK/../gvr-android-sdk
-GVRNDK=$GVRSDK/ndk-beta
+GVRNDK=$GVRSDK/ndk
 ARCH=$1
 
 

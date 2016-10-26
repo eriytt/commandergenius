@@ -225,11 +225,19 @@ static float RandomUniformFloat() {
 }
 
 static void CheckGLError(const char* label) {
-  int gl_error = glGetError();
-  if (gl_error != GL_NO_ERROR) {
+  int gl_error;
+  while ( (gl_error=glGetError()) != GL_NO_ERROR) {
     LOGW("GL error @ %s: %d", label, gl_error);
   }
   assert(glGetError() == GL_NO_ERROR);
+}
+
+static gvr::Sizei HalfPixelCount(const gvr::Sizei& in) {
+  // Scale each dimension by sqrt(2)/2 ~= 7/10ths.
+  gvr::Sizei out;
+  out.width = (7 * in.width) / 10;
+  out.height = (7 * in.height) / 10;
+  return out;
 }
 
 }  // namespace
@@ -362,7 +370,7 @@ void VRXRenderer::InitializeGl() {
                   0.0f, 0.0f, 1.0f, 0.0f,
                   0.0f, 0.0f, 0.0f, 1.0f};
 
-  render_size_ = gvr_api_->GetRecommendedRenderTargetSize();
+  render_size_ = HalfPixelCount(gvr_api_->GetMaximumEffectiveRenderTargetSize());
 
   std::vector<gvr::BufferSpec> specs;
   specs.push_back(gvr_api_->CreateBufferSpec());
@@ -370,10 +378,12 @@ void VRXRenderer::InitializeGl() {
   specs[0].SetColorFormat(GVR_COLOR_FORMAT_RGBA_8888);
   specs[0].SetDepthStencilFormat(GVR_DEPTH_STENCIL_FORMAT_DEPTH_16);
   specs[0].SetSamples(2);
-  swapchain_.reset(new gvr::SwapChain(gvr_api_->CreateSwapchain(specs)));
+  swapchain_.reset(new gvr::SwapChain(gvr_api_->CreateSwapChain(specs)));
 
   viewport_list_.reset(new gvr::BufferViewportList(
       gvr_api_->CreateEmptyBufferViewportList()));
+
+  LOGI("OpenGL initialized");
 
   wm = WindowManager::Create(":0");
   // TODO: bail if this happens
@@ -383,7 +393,7 @@ void VRXRenderer::InitializeGl() {
 }
 
 void VRXRenderer::DrawFrame() {
-  wm->Run();
+  PrepareFramebuffer();
 
   int size = 1024;
   glBindTexture(GL_TEXTURE_2D, texname);
@@ -398,25 +408,39 @@ void VRXRenderer::DrawFrame() {
   target_time.monotonic_system_time_nanos +=
       kPredictionTimeWithoutVsyncNanos;
 
-  head_pose_ = gvr_api_->GetHeadPoseInStartSpace(target_time);
-  gvr::Mat4f left_eye_view_pose =
-      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_LEFT_EYE), head_pose_);
-  gvr::Mat4f right_eye_view_pose =
-      MatrixMul(gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE), head_pose_);
+
+  head_view_ = gvr_api_->GetHeadSpaceFromStartSpaceRotation(target_time);
+  gvr::Mat4f left_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_LEFT_EYE);
+  gvr::Mat4f right_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE);
+  gvr::Mat4f left_eye_view = MatrixMul(left_eye_matrix, head_view_);
+  gvr::Mat4f right_eye_view = MatrixMul(right_eye_matrix, head_view_);
 
   frame.BindBuffer(0);
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_SCISSOR_TEST);
   viewport_list_->GetBufferViewport(0, &scratch_viewport_);
-  DrawEye(GVR_LEFT_EYE, left_eye_view_pose, scratch_viewport_);
+  DrawEye(GVR_LEFT_EYE, left_eye_view, scratch_viewport_);
   viewport_list_->GetBufferViewport(1, &scratch_viewport_);
-  DrawEye(GVR_RIGHT_EYE, right_eye_view_pose, scratch_viewport_);
+  DrawEye(GVR_RIGHT_EYE, right_eye_view, scratch_viewport_);
 
   // Bind back to the default framebuffer.
   frame.Unbind();
-  frame.Submit(*viewport_list_, head_pose_);
+  frame.Submit(*viewport_list_, head_view_);
 
   CheckGLError("onDrawFrame");
+}
+
+void VRXRenderer::PrepareFramebuffer() {
+  // Because we are using 2X MSAA, we can render to half as many pixels and
+  // achieve similar quality.
+  gvr::Sizei recommended_size =
+      HalfPixelCount(gvr_api_->GetMaximumEffectiveRenderTargetSize());
+  if (render_size_.width != recommended_size.width ||
+      render_size_.height != recommended_size.height) {
+    // We need to resize the framebuffer.
+    swapchain_->ResizeBuffer(0, recommended_size);
+    render_size_ = recommended_size;
+  }
 }
 
 void VRXRenderer::OnTriggerEvent() {
@@ -510,11 +534,13 @@ void VRXRenderer::DrawCube() {
   // Set the position of the cube
   glVertexAttribPointer(cube_position_param_, kCoordsPerVertex, GL_FLOAT,
                         false, 0, cube_vertices_);
+  glEnableVertexAttribArray(cube_position_param_);
 
   // Set texture
-  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT,
-			false, 0, cube_tex_coords_);
+  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT, false, 0, cube_tex_coords_);
+  glEnableVertexAttribArray(cube_tex_coord_param_);
   glActiveTexture(GL_TEXTURE0);
+
   glBindTexture(GL_TEXTURE_2D, texname);
 
 
@@ -522,16 +548,19 @@ void VRXRenderer::DrawCube() {
   glUniformMatrix4fv(cube_modelview_projection_param_, 1, GL_FALSE,
                      MatrixToGLArray(modelview_projection_cube_).data());
 
+  // The parameters below are sometimes optimized away, and not available
   // Set the normal positions of the cube, again for shading
-  glVertexAttribPointer(
-      cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
-  glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-                        IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+  if( cube_normal_param_ != -1 ){
+    glVertexAttribPointer( cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
+    glEnableVertexAttribArray(cube_normal_param_);
+  }
 
-  glEnableVertexAttribArray(cube_position_param_);
-  glEnableVertexAttribArray(cube_normal_param_);
-  glEnableVertexAttribArray(cube_color_param_);
-  glEnableVertexAttribArray(cube_tex_coord_param_);
+  if( cube_color_param_ != -1 ){
+    glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
+                        IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+    glEnableVertexAttribArray(cube_color_param_);
+  }
+
 
   glDrawArrays(GL_TRIANGLES, 0, 36);
   CheckGLError("Drawing cube");
@@ -606,7 +635,7 @@ bool VRXRenderer::IsLookingAtObject() {
   static const float kYawLimit = 0.12f;
 
   gvr::Mat4f modelview =
-      MatrixMul(head_pose_, model_cube_);
+      MatrixMul(head_view_, model_cube_);
 
   std::array<float, 4> temp_position =
       MatrixVectorMul(modelview, {0.f, 0.f, 0.f, 1.f});
