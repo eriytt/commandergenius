@@ -1,14 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 CURDIR=`pwd`
 
 PACKAGE_NAME=`grep AppFullName AndroidAppSettings.cfg | sed 's/.*=//'`
-
-[ -d vrxwm ] && {
-    cd vrxwm
-    ./android-build.sh $1 || exit 1
-    cd ..
-} || exit 1
 
 ../setEnvironment-$1.sh sh -c '\
 $CC $CFLAGS -Werror=format -c main.c -o main-'"$1.o" || exit 1
@@ -109,6 +103,13 @@ env CURDIR=$CURDIR \
 # hw/kdrive/linux/.libs/liblinux.a \
 # -lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so' \
 # || exit 1
+
+[ -d $CURDIR/vrxwm ] && {
+    pushd $CURDIR/vrxwm
+    ./android-build.sh $1 || exit 1
+    popd
+} || exit 1
+
 
 rm -rf $CURDIR/tmp-$1
 mkdir -p $CURDIR/tmp-$1

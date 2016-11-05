@@ -396,6 +396,7 @@ void VRXRenderer::DrawFrame() {
   PrepareFramebuffer();
 
   int size = 1024;
+
   glBindTexture(GL_TEXTURE_2D, texname);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, framebuffer);

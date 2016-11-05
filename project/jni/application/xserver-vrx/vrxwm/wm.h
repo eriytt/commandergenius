@@ -95,6 +95,9 @@ class WindowManager {
   // Atom constants.
   const Atom WM_PROTOCOLS;
   const Atom WM_DELETE_WINDOW;
+
+  int cEventBase;
+  int cErrorBase;
 };
 
 #endif

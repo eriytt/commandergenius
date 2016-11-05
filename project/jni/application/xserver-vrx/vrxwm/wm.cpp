@@ -19,6 +19,7 @@
 #include "wm.h"
 extern "C" {
 #include <X11/Xutil.h>
+#include <X11/extensions/Xcomposite.h>
 }
 #include <cstring>
 #include <algorithm>
@@ -55,6 +56,10 @@ WindowManager::~WindowManager() {
 }
 
 void WindowManager::Init() {
+
+  if (!XCompositeQueryExtension(display_, &cEventBase, &cErrorBase))
+    LOGE("X server does not support compositing");
+
   // 1. Initialization.
   //   a. Select events on root window. Use a special error handler so we can
   //   exit gracefully if another window manager is already running.
@@ -268,15 +273,28 @@ void WindowManager::Unframe(Window w) {
   LOGI("Unframed window %d [%d]", w, frame);
 }
 
-void WindowManager::OnCreateNotify(const XCreateWindowEvent& e) {}
+void WindowManager::OnCreateNotify(const XCreateWindowEvent& e)
+{
+  LOGI("OnCreateNotify");
+}
 
-void WindowManager::OnDestroyNotify(const XDestroyWindowEvent& e) {}
+void WindowManager::OnDestroyNotify(const XDestroyWindowEvent& e)
+{
+  LOGI("OnDestroyNotify");
+}
 
-void WindowManager::OnReparentNotify(const XReparentEvent& e) {}
+void WindowManager::OnReparentNotify(const XReparentEvent& e)
+{
+  LOGI("OnReparentNotify");
+}
 
-void WindowManager::OnMapNotify(const XMapEvent& e) {}
+void WindowManager::OnMapNotify(const XMapEvent& e)
+{
+  LOGI("OnMapNotify");
+}
 
 void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
+  LOGI("OnUnmapNotify");
   // If the window is a client window we manage, unframe it upon UnmapNotify. We
   // need the check because other than a client window, we can receive an
   // UnmapNotify for
@@ -293,9 +311,13 @@ void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
   Unframe(e.window);
 }
 
-void WindowManager::OnConfigureNotify(const XConfigureEvent& e) {}
+void WindowManager::OnConfigureNotify(const XConfigureEvent& e)
+{
+  LOGI("OnConfigureNotify");
+}
 
 void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
+  LOGI("OnMapRequest");
   // 1. Frame or re-frame window.
   Frame(e.window);
   // 2. Actually map window.
@@ -303,6 +325,7 @@ void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
 }
 
 void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
+  LOGI("OnConfigureRequest");
   XWindowChanges changes;
   changes.x = e.x;
   changes.y = e.y;
@@ -321,6 +344,7 @@ void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
 }
 
 void WindowManager::OnButtonPress(const XButtonEvent& e) {
+  LOGI("OnButtonPress");
   CHECK(clients_.count(e.window));
   const Window frame = clients_[e.window];
 
@@ -346,9 +370,13 @@ void WindowManager::OnButtonPress(const XButtonEvent& e) {
   XRaiseWindow(display_, frame);
 }
 
-void WindowManager::OnButtonRelease(const XButtonEvent& e) {}
+void WindowManager::OnButtonRelease(const XButtonEvent& e)
+{
+  LOGI("OnButtonRelease");
+}
 
 void WindowManager::OnMotionNotify(const XMotionEvent& e) {
+  LOGI("OnMotionNotify");
   CHECK(clients_.count(e.window));
   const Window frame = clients_[e.window];
   const Position<int> drag_pos(e.x_root, e.y_root);
