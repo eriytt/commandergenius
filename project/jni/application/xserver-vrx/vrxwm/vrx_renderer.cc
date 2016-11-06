@@ -393,6 +393,8 @@ void VRXRenderer::InitializeGl() {
 }
 
 void VRXRenderer::DrawFrame() {
+  wm->Run();
+
   PrepareFramebuffer();
 
   int size = 1024;
