@@ -24,11 +24,27 @@
 #include <string>
 #include <thread>  // NOLINT
 #include <vector>
+#include <map>
+#include <list>
+
+extern "C" {
+#include <vrxexport.h>
+}
 
 #include "vr/gvr/capi/include/gvr.h"
 #include "vr/gvr/capi/include/gvr_types.h"
 #include "world_layout_data.h"
 #include "wm.h"
+
+
+struct VRXWindow
+{
+  struct WindowHandle *handle;
+  void *buffer;
+  gvr::Mat4f modelView;
+  unsigned int texId;
+  VRXWindow(struct WindowHandle *w) : handle(w), buffer(nullptr) {}
+};
 
 class VRXRenderer {
  public:
@@ -101,6 +117,8 @@ class VRXRenderer {
    * into the shader.
    */
   void DrawCube();
+
+  void DrawWindow(const VRXWindow *win, const gvr::Mat4f &perspective);
 
   /**
    * Draw the floor.
@@ -178,10 +196,28 @@ class VRXRenderer {
   float object_distance_;
   float floor_depth_;
 
+  int windowProgram;
+
   GLuint texname;
   unsigned char *framebuffer;
 
+  int wMVP_param;
+  int wTex_param;
+  int wPos_param;
+
   std::unique_ptr<WindowManager> wm;
+
+  void handleCreateWindow(struct WindowHandle *pWin);
+  void handleDestroyWindow(struct WindowHandle *pWin);
+
+  static void CreateWindow(struct WindowHandle *pWin, void *instance)
+  {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin);}
+  static void DestroyWindow(struct WindowHandle *pWin, void *instance)
+  {reinterpret_cast<VRXRenderer*>(instance)->handleDestroyWindow(pWin);}
+
+  std::mutex windowMutex;
+  std::map<struct WindowHandle*, VRXWindow *> windows;
+  std::list<const VRXWindow *> renderWindows;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

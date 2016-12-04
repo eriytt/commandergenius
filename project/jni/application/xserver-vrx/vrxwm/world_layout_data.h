@@ -49,6 +49,9 @@ class WorldLayoutData {
   std::array<float, 72> FLOOR_NORMALS;
   std::array<float, 96> FLOOR_COLORS;
 
+  std::array<float, 18> WINDOW_COORDS;
+  std::array<float, 18> WINDOW_TEXCOORDS;
+
   WorldLayoutData() {
     CUBE_COORDS = {{
       // Front face
@@ -384,6 +387,25 @@ class WorldLayoutData {
       0.0f, 0.3398f, 0.9023f, 1.0f,
       0.0f, 0.3398f, 0.9023f, 1.0f,
       0.0f, 0.3398f, 0.9023f, 1.0f,
+      }};
+
+    WINDOW_COORDS = {{
+      // Front face
+      -1.0f,  1.0f,  1.0f,
+      -1.0f, -1.0f,  1.0f,
+       1.0f,  1.0f,  1.0f,
+      -1.0f, -1.0f,  1.0f,
+       1.0f, -1.0f,  1.0f,
+       1.0f,  1.0f,  1.0f,
+      }};
+
+    WINDOW_TEXCOORDS = {{
+	0.0f, 0.0f, // v0
+	0.0f, 1.0f, // v1
+	1.0f, 0.0f, // v2
+	0.0f, 1.0f, // v1
+	1.0f, 1.0f, // v3
+	1.0f, 0.0f, // v2
       }};
   }
 };

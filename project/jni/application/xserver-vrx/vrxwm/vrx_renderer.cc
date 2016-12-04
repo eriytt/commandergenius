@@ -102,8 +102,26 @@ static const char* kLightVertexShader =
   "  v_Color = a_Color * diffuse;\n"
   "  gl_Position = u_MVP * a_Position;\n"
   "}\n";
-  
-// static const char* kPassthroughFragmentShader =
+
+static const char *WindowVertexShader =
+  "uniform mat4 u_MVP;\n"
+  "attribute vec2 a_Texcoord;\n"
+  "attribute vec4 a_Position;\n"
+  "varying vec2 v_Texcoord;\n"
+  "void main() {\n"
+  "  v_Texcoord = a_Texcoord;\n"
+  "  gl_Position = u_MVP * a_Position;\n"
+  "}\n";
+
+static const char *WindowFragmentShader =
+  "precision mediump float;\n"
+  "uniform sampler2D u_Texture;\n"
+  "varying vec2 v_Texcoord;\n"
+  "void main() {\n"
+  "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
+  "}\n";
+
+  // static const char* kPassthroughFragmentShader =
 //     "precision mediump float;\n"
 //     "\n"
 //     "varying vec4 v_Color;\n"
@@ -259,23 +277,24 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
       wm(nullptr)
 {
   LOGI("Framebuffer @%p", fb);
+  VRXSetCallbacks(CreateWindow, DestroyWindow, this);
 }
 
 VRXRenderer::~VRXRenderer() {
 }
 
-static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
+static GLuint CreateTexture(int size_x, int size_y, uint8_t *framebuffer = nullptr)
 {
   uint8_t * source_buf = framebuffer;
 
   if (not source_buf)
     {
       LOGI("Creating dummy texture");
-      source_buf = new uint8_t[size * size * 4];
-      for (int x = 0; x < size; ++x)
-	for (int y = 0; y < size; ++y)
+      source_buf = new uint8_t[size_x * size_y * 4];
+      for (int x = 0; x < size_x; ++x)
+	for (int y = 0; y < size_y; ++y)
 	  {
-	    unsigned int pixel_index = (x * size + y);
+	    unsigned int pixel_index = (x * size_y + y);
 	    uint8_t *pixel = &source_buf[pixel_index * 4];
 	    pixel[0] = static_cast<uint8_t>(0xff);
 	    pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
@@ -288,7 +307,7 @@ static GLuint CreateTexture(int size, uint8_t *framebuffer = nullptr)
   GLuint tex_id;
   glGenTextures(1, &tex_id);
   glBindTexture(GL_TEXTURE_2D, tex_id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size_x, size_y, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, source_buf);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -314,7 +333,7 @@ void VRXRenderer::InitializeGl() {
   floor_normals_ = world_layout_data_.FLOOR_NORMALS.data();
   floor_colors_ = world_layout_data_.FLOOR_COLORS.data();
 
-  texname = CreateTexture(1024, framebuffer);
+  texname = CreateTexture(1024, 1024, framebuffer);
 
   int vertex_shader = LoadGLShader(GL_VERTEX_SHADER, &kLightVertexShader);
   int grid_shader = LoadGLShader(GL_FRAGMENT_SHADER, &kGridFragmentShader);
@@ -326,7 +345,10 @@ void VRXRenderer::InitializeGl() {
   glAttachShader(cube_program_, pass_through_shader);
   glLinkProgram(cube_program_);
   glUseProgram(cube_program_);
+  CheckGLError("Cube program");
 
+
+  
   cube_position_param_ = glGetAttribLocation(cube_program_, "a_Position");
   cube_normal_param_ = glGetAttribLocation(cube_program_, "a_Normal");
   cube_tex_coord_param_ = glGetAttribLocation(cube_program_, "a_Texcoord");
@@ -360,6 +382,25 @@ void VRXRenderer::InitializeGl() {
 
   CheckGLError("Floor program params");
 
+  int win_vshader = LoadGLShader(GL_VERTEX_SHADER, &WindowVertexShader);
+  CheckGLError("Window vertex shader");
+  int win_fshader = LoadGLShader(GL_FRAGMENT_SHADER, &WindowFragmentShader);
+  CheckGLError("Window fragment shader");
+  windowProgram = glCreateProgram();
+  CheckGLError("Window program create");
+  glAttachShader(windowProgram, win_vshader);
+  CheckGLError("Window program attach vertex shader");
+  glAttachShader(windowProgram, win_fshader);
+  CheckGLError("Window program attach fragment shader");
+  glLinkProgram(windowProgram);
+  CheckGLError("Window program link");
+  glUseProgram(windowProgram);
+  CheckGLError("Window program");
+
+  wPos_param = glGetAttribLocation(windowProgram, "a_Position");
+  wTex_param = glGetAttribLocation(windowProgram, "a_Texcoord");
+  wMVP_param = glGetUniformLocation(windowProgram, "u_MVP");
+  
   // Object first appears directly in front of user.
   model_cube_ = {1.0f, 0.0f, 0.0f, 0.0f,
                  0.0f, 0.707f, -0.707f, 0.0f,
@@ -391,6 +432,22 @@ void VRXRenderer::InitializeGl() {
     LOGE("Failed to initialize window manager");
   wm->Init();
 }
+
+// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+// NOTE, 32 bit only!
+static inline unsigned int roundUpPow2(unsigned int v)
+{
+  v--;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v++;
+  return v;
+}
+
+#include <unistd.h>
 
 void VRXRenderer::DrawFrame() {
   wm->Run();
@@ -430,7 +487,47 @@ void VRXRenderer::DrawFrame() {
   frame.Unbind();
   frame.Submit(*viewport_list_, head_view_);
 
+  renderWindows.clear();
+  windowMutex.lock();
+  for (auto wi : windows)
+    {
+      VRXWindow *w = wi.second;
+      unsigned int width, height;
+      void *fb = VRXGetWindowBuffer(w->handle, &width, &height);
+      if (fb != w->buffer)
+	{
+	  LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)", w->handle, w->buffer, fb, width, height);
+
+	  if (w->buffer == nullptr) {
+	    w->texId = CreateTexture(roundUpPow2(width), roundUpPow2(height));
+	    float object_distance = 3.5;
+	    w->modelView = {1.0f,   0.0f,    0.0f,             0.0f,
+			    0.0f,   1.0,     0.0f,             0.0f,
+			    0.0f,   0.0f,    1.0f, -object_distance,
+			    0.0f,   0.0f,    0.0f,             1.0f};
+	  }
+
+	  w->buffer = fb;
+	}
+
+      if (w->buffer != nullptr)
+	{
+	  glBindTexture(GL_TEXTURE_2D, w->texId);
+	  glTexSubImage2D(GL_TEXTURE_2D, 0,
+			  0, 0,
+			  width, height,
+			  GL_RGBA, GL_UNSIGNED_BYTE,
+			  w->buffer);
+	  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	  //glBindTexture(GL_TEXTURE_2D, 0);
+	  renderWindows.push_back(w);
+	}
+    }
+  windowMutex.unlock();
+
   CheckGLError("onDrawFrame");
+  //sleep(1);
 }
 
 void VRXRenderer::PrepareFramebuffer() {
@@ -479,8 +576,9 @@ int VRXRenderer::LoadGLShader(int type, const char** shadercode) {
 
   // If the compilation failed, delete the shader.
   if (compileStatus[0] == 0) {
-      glDeleteShader(shader);
-      shader = 0;
+    LOGE("Shader compilation failed");
+    glDeleteShader(shader);
+    shader = 0;
   }
 
   return shader;
@@ -513,12 +611,74 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
 
   modelview_ = MatrixMul(view_matrix, model_cube_);
   modelview_projection_cube_ = MatrixMul(perspective, modelview_);
-  DrawCube();
+  //DrawCube();
 
   // Set modelview_ for the floor, so we draw floor in the correct location
   modelview_ = MatrixMul(view_matrix, model_floor_);
   modelview_projection_floor_ = MatrixMul(perspective, modelview_);
   DrawFloor();
+
+  gvr::Mat4f mvp = MatrixMul(perspective, view_matrix);
+
+  for (auto w: renderWindows)
+    DrawWindow(w, mvp);
+}
+
+void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
+{
+  glUseProgram(windowProgram);
+
+  // Set the Model in the shader, used to calculate lighting
+  // glUniformMatrix4fv(cube_model_param_, 1, GL_FALSE,
+  //                    MatrixToGLArray(model_cube_).data());
+
+  // Set the ModelView in the shader, used to calculate lighting
+  // glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
+  //                    MatrixToGLArray(modelview_).data());
+
+  // Set the position of the cube
+  glVertexAttribPointer(wPos_param, kCoordsPerVertex, GL_FLOAT, false, 0,
+			world_layout_data_.WINDOW_COORDS.data());
+  glEnableVertexAttribArray(wPos_param);
+
+  CheckGLError("Drawing window: window position");
+
+  // Set texture
+  glVertexAttribPointer(wTex_param, 2, GL_FLOAT, false, 0,
+			world_layout_data_.WINDOW_TEXCOORDS.data());
+  glEnableVertexAttribArray(wTex_param);
+  glActiveTexture(GL_TEXTURE0);
+
+  CheckGLError("Drawing window: window texture");
+
+  glBindTexture(GL_TEXTURE_2D, win->texId);
+
+  CheckGLError("Drawing window: window texture bind");
+
+  gvr::Mat4f wmat = MatrixMul(mvp , win->modelView);
+  // Set the ModelViewProjection matrix in the shader.
+  glUniformMatrix4fv(wMVP_param, 1, GL_FALSE,
+                     MatrixToGLArray(wmat).data());
+
+  CheckGLError("Drawing window: view matrix");
+
+  // The parameters below are sometimes optimized away, and not available
+  // Set the normal positions of the cube, again for shading
+  // if( cube_normal_param_ != -1 ){
+  //   glVertexAttribPointer( cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
+  //   glEnableVertexAttribArray(cube_normal_param_);
+  // }
+
+  // if( cube_color_param_ != -1 ){
+  //   glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
+  //                       IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+  //   glEnableVertexAttribArray(cube_color_param_);
+  // }
+
+
+  glDrawArrays(GL_TRIANGLES, 0, 18);
+  CheckGLError("Drawing window");
+  glActiveTexture(GL_TEXTURE0);
 }
 
 void VRXRenderer::DrawCube() {
@@ -647,4 +807,35 @@ bool VRXRenderer::IsLookingAtObject() {
   float yaw = std::atan2(temp_position[0], -temp_position[2]);
 
   return std::abs(pitch) < kPitchLimit && std::abs(yaw) < kYawLimit;
+}
+
+void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
+{
+  windowMutex.lock();
+  auto it = windows.find(w);
+  if (it != windows.end())
+    {
+      windowMutex.unlock();
+      return;
+    }
+  windows[w] = new VRXWindow(w);
+  windowMutex.unlock();
+  LOGW("New window: %p", w);
+}
+
+void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
+{
+  LOGI("Destroy window: %p", w);
+  windowMutex.lock();
+  LOGI("Destroy window: size before destroy: %d", windows.size());
+  auto it = windows.find(w);
+  if (it == windows.end())
+    {
+      windowMutex.unlock();
+      LOGE("We don't know anything about this window!");
+      return;
+    }
+  windows.erase(it);
+  LOGI("Destroy window: size after destroy: %d", windows.size());
+  windowMutex.unlock();
 }

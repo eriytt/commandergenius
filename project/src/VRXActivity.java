@@ -44,7 +44,6 @@ public class VRXActivity extends Activity {
 
   static {
     System.loadLibrary("gvr");
-    System.loadLibrary("vrxwm");
   }
 
   @Override

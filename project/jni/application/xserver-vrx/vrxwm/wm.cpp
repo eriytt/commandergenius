@@ -101,6 +101,9 @@ void WindowManager::Init() {
   }
   //     iii. Free top-level window array.
   XFree(top_level_windows);
+
+  XCompositeRedirectSubwindows(display_, root_, CompositeRedirectManual);
+
   //   e. Ungrab X server.
   XUngrabServer(display_);
 }

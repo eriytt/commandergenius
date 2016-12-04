@@ -32,9 +32,45 @@ cd $1
 	git clean -f -d -x .
 }
 
+[ -d $CURDIR/vrxwm ] && {
+    pushd $CURDIR/vrxwm
+    ./android-build.sh $1 || exit 1
+    popd
+    cp $CURDIR/vrxwm/build-$1/libvrxwm.a .
+} || exit 1
+
 # Megahack: set /proc/self/cwd as the X.org data dir, and chdir() to the correct directory when runngin X.org
 env TARGET_DIR=/proc/self/cwd \
 ./build.sh || exit 1
+
+GVRSDK=$NDK/../gvr-android-sdk
+GVRNDK=$GVRSDK/ndk
+ARCH=$1
+
+case $ARCH in
+    armeabi)
+	TARGET_HOST=armv5te-none-linux-androideabi
+	TARGET_ARCH=arch-arm
+	NDK_ARCH=android_arm # ?
+	;;
+    armeabi-v7a)
+	TARGET_HOST=arm-linux-androideabi
+	TARGET_ARCH=arch-arm
+	NDK_ARCH=android_arm
+	;;
+    x86)
+	TARGET_HOST=i686-linux-android
+	TARGET_ARCH=arch-x86
+	NDK_ARCH=android_x86
+	;;
+    mips)
+	TARGET_HOST=mipsel-linux-android
+	TARGET_ARCH=arch-mips
+	echo "MIPS architecture not supported"
+	exit 1
+	;;
+esac
+
 
 linkcmd='\
 $CC $CFLAGS $LDFLAGS -o $CURDIR/libapplication-'"$1.so"' -L. \
@@ -42,6 +78,7 @@ $CURDIR/main-'"$1.o"' \
 $CURDIR/gfx-'"$1.o"' \
 dix/.libs/libmain.a \
 dix/.libs/libdix.a \
+libvrxwm.a \
 hw/kdrive/vrx/libvrx.a \
 hw/kdrive/src/.libs/libkdrive.a \
 hw/kdrive/src/.libs/libkdrivestubs.a \
@@ -63,52 +100,21 @@ xkb/.libs/libxkbstubs.a \
 composite/.libs/libcomposite.a \
 os/.libs/libos.a \
 hw/kdrive/linux/.libs/liblinux.a \
--Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeGetFrameBufferPointer \
--lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so'
+-Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX,\
+-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeGetFrameBufferPointer,\
+-uJava_com_towersmatrix_vrx_VRXActivity_nativeCreateRenderer,\
+-uVRXGetWindowBuffer \
+-lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so \
+-L'"$GVRNDK/lib/$NDK_ARCH"' \
+-lgnustl_shared -lEGL -lGLESv2 -lgvr -lX11 -lxcb -landroid_support -lXau -lXdmcp -lXcomposite'
 
+echo $CURDIR
 echo "$linkcmd"
 
 env CURDIR=$CURDIR \
     ../../../../setEnvironment-$1.sh sh -c "$linkcmd"  \
     || exit 1
 
-
-# env CURDIR=$CURDIR \
-# ../../../../setEnvironment-$1.sh sh -c '\
-# $CC $CFLAGS $LDFLAGS -o $CURDIR/libapplication-'"$1.so"' -L. \
-# $CURDIR/main-'"$1.o"' \
-# $CURDIR/gfx-'"$1.o"' \
-# hw/kdrive/vrx/libvrx.a \
-# dix/.libs/libmain.a \
-# dix/.libs/libdix.a \
-# hw/kdrive/src/.libs/libkdrive.a \
-# hw/kdrive/src/.libs/libkdrivestubs.a \
-# fb/.libs/libfb.a \
-# mi/.libs/libmi.a \
-# xfixes/.libs/libxfixes.a \
-# Xext/.libs/libXext.a \
-# dbe/.libs/libdbe.a \
-# record/.libs/librecord.a \
-# randr/.libs/librandr.a \
-# render/.libs/librender.a \
-# damageext/.libs/libdamageext.a \
-# miext/sync/.libs/libsync.a \
-# miext/damage/.libs/libdamage.a \
-# miext/shadow/.libs/libshadow.a \
-# Xi/.libs/libXi.a \
-# xkb/.libs/libxkb.a \
-# xkb/.libs/libxkbstubs.a \
-# composite/.libs/libcomposite.a \
-# os/.libs/libos.a \
-# hw/kdrive/linux/.libs/liblinux.a \
-# -lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so' \
-# || exit 1
-
-[ -d $CURDIR/vrxwm ] && {
-    pushd $CURDIR/vrxwm
-    ./android-build.sh $1 || exit 1
-    popd
-} || exit 1
 
 
 rm -rf $CURDIR/tmp-$1
