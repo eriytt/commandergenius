@@ -8,7 +8,7 @@ fi
 echo "Building vrxwm for $1"
 
 GVRSDK=$NDK/../gvr-android-sdk
-GVRNDK=$GVRSDK/ndk-beta
+GVRNDK=$GVRSDK/ndk
 ARCH=$1
 
 
@@ -41,11 +41,9 @@ builddir=build-$ARCH
 mkdir -p $builddir
 cd $builddir
 
-#echo NDK_TOOLCHAIN_VERSION=$NDK_TOOLCHAIN_VERSION
-#export
-
 LDFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -L$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH -L$GVRNDK/lib/$NDK_ARCH -lgnustl_shared -llog -lEGL -lGLESv2 -lgvr"
-CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -I../../xserver/android/$ARCH -D__ANDROID__ -std=c++11"
+
+CXXFLAGS="--sysroot=$NDK/platforms/$PLATFORMVER/$TARGET_ARCH -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/include -isystem$NDK/sources/cxx-stl/gnu-libstdc++/$GCCVER/libs/$ARCH/include -I$GVRNDK/include -I../../xserver/android/$ARCH -D__ANDROID__ -std=c++11 -I../../xserver/hw/kdrive/vrx"
 
 [ -e Makefile ] || \
     LDFLAGS="$LDFLAGS" \

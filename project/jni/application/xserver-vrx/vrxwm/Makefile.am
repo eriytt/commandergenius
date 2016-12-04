@@ -15,9 +15,9 @@
 
 # vrx_LDFLAGS = $(LD_EXPORT_SYMBOLS_FLAG)
 
-lib_LTLIBRARIES = libvrxwm.la
+noinst_LIBRARIES = libvrxwm.a
 
-libvrxwm_la_SOURCES = vrx_jni.cc  vrx_renderer.cc vrx_renderer.h  world_layout_data.h wm.cpp wm.h wm-util.cpp wm-util.h common.h
+libvrxwm_a_SOURCES = vrx_jni.cc  vrx_renderer.cc vrx_renderer.h  world_layout_data.h wm.cpp wm.h wm-util.cpp wm-util.h common.h
 
 relink:
 	rm -f $(noinst_LTLIBRARIES) && make $(noinst_LTLIBRARIES)

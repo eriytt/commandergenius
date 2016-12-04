@@ -24,6 +24,7 @@ import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Vibrator;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -43,8 +44,6 @@ public class VRXActivity extends Activity {
 
   static {
     System.loadLibrary("gvr");
-    System.loadLibrary("X11");
-    System.loadLibrary("vrxwm");
   }
 
   @Override
@@ -83,6 +82,7 @@ public class VRXActivity extends Activity {
     if (fbptr == 0)
 	throw new RuntimeException("xserver failed to alloc framebuffer");
 
+    Log.i("VRX", "Creating native renderer");
     nativeVRXRenderer =
         nativeCreateRenderer(
             getClass().getClassLoader(),
@@ -124,15 +124,6 @@ public class VRXActivity extends Activity {
           }
         });
     gvrLayout.setPresentationView(glSurfaceView);
-
-    // Add the VR UI layout to the GvrLayout.
-    gvrLayout.getUiLayout().setBackButtonListener(
-        new Runnable() {
-          @Override
-          public void run() {
-            onBackPressed();
-          }
-        });
 
     // Add the GvrLayout to the View hierarchy.
     setContentView(gvrLayout);

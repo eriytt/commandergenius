@@ -115,7 +115,7 @@ NDK=`readlink -f $NDK`
 [ -z "$PLATFORMVER" ] && PLATFORMVER=android-19
 
 GVRSDK=$NDK/../gvr-android-sdk
-GVRNDK=$GVRSDK/ndk-beta
+GVRNDK=$GVRSDK/ndk
 
 echo exporting GCCVER=$NDK_TOOLCHAIN_VERSION
 
@@ -145,11 +145,8 @@ strip_libs() {
 		cp jni/application/src/libapplication-armeabi-v7a.so libs/armeabi-v7a/libapplication.so && \
 		cp jni/application/xserver-vrx/vrxwm/build-armeabi-v7a/.libs/libvrxwm.so obj/local/armeabi-v7a/libvrxwm.so && \
 		cp jni/application/xserver-vrx/vrxwm/build-armeabi-v7a/.libs/libvrxwm.so libs/armeabi-v7a/libvrxwm.so && \
-		cp jni/application/xserver-vrx/xserver/android/armeabi-v7a/libX11-1.6.2/src/.libs/libX11.so obj/local/armeabi-v7a/libX11.so && \
-		cp jni/application/xserver-vrx/xserver/android/armeabi-v7a/libX11-1.6.2/src/.libs/libX11.so libs/armeabi-v7a/libX11.so && \
 		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libapplication.so && \
-		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libvrxwm.so \
-		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libX11.so
+		`which ndk-build | sed 's@/ndk-build@@'`/toolchains/arm-linux-androideabi-${NDK_TOOLCHAIN_VERSION}/prebuilt/$MYARCH/bin/arm-linux-androideabi-strip --strip-unneeded libs/armeabi-v7a/libvrxwm.so
 	grep "CustomBuildScript=y" ../AndroidAppSettings.cfg > /dev/null && \
 		grep "MultiABI=" ../AndroidAppSettings.cfg | grep "all\\|mips" > /dev/null && \
 		echo Stripping libapplication-mips.so by hand && \
@@ -194,6 +191,11 @@ strip_libs() {
 }
 
 ANTPROPS="-Dgvr.sdk=$GVRSDK"
+
+PROTOBUF_JAR="protobuf-javanano-3.0.0-alpha-7.jar"
+if [ ! -f project/lib/$PROTOBUF_JAR ]; then
+   wget -O project/lib/$PROTOBUF_JAR http://central.maven.org/maven2/com/google/protobuf/nano/protobuf-javanano/3.0.0-alpha-7/$PROTOBUF_JAR
+fi
 
 cd project && env PATH=$NDKBUILDPATH BUILD_NUM_CPUS=$NCPU nice -n19 ndk-build -j$NCPU V=1 && \
 	strip_libs && \
