@@ -43,4 +43,6 @@ public class VRXServer implements Runnable{
 
   private native int nativeRunX(String filesDirectory);
   private native int nativeGetFrameBufferPointer();
+  public native void nativeKeyEvent(int scancode, boolean down);
+  public native void nativeMouseMotionEvent(int x, int y);
 }
