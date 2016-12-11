@@ -25,6 +25,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -110,19 +111,19 @@ public class VRXActivity extends Activity {
             nativeDrawFrame(nativeVRXRenderer);
           }
         });
-    glSurfaceView.setOnTouchListener(
-        new View.OnTouchListener() {
-          @Override
-          public boolean onTouch(View v, MotionEvent event) {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-              // Give user feedback and signal a trigger event.
-              ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(50);
-              nativeOnTriggerEvent(nativeVRXRenderer);
-              return true;
-            }
-            return false;
-          }
-        });
+    // glSurfaceView.setOnTouchListener(
+    //     new View.OnTouchListener() {
+    //       @Override
+    //       public boolean onTouch(View v, MotionEvent event) {
+    //         if (event.getAction() == MotionEvent.ACTION_DOWN) {
+    //           // Give user feedback and signal a trigger event.
+    //           ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(50);
+    //           nativeOnTriggerEvent(nativeVRXRenderer);
+    //           return true;
+    //         }
+    //         return false;
+    //       }
+    //     });
     gvrLayout.setPresentationView(glSurfaceView);
 
     // Add the GvrLayout to the View hierarchy.
@@ -176,6 +177,28 @@ public class VRXActivity extends Activity {
     if (hasFocus) {
       setImmersiveSticky();
     }
+  }
+
+  @Override
+  public boolean dispatchKeyEvent(KeyEvent event) {
+    Log.i("VRX", "Got key event: " + event);
+
+    int action = event.getAction();
+    if (action == KeyEvent.ACTION_MULTIPLE)
+      return true;
+
+    if (xsrv != null && event.getKeyCode() == KeyEvent.KEYCODE_P)
+      xsrv.nativeMouseMotionEvent(100, 100);
+
+    if (xsrv != null)
+      xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    return true;
+  }
+
+  @Override
+  public boolean dispatchGenericMotionEvent (MotionEvent event) {
+    Log.i("VRX", "Got motion event: " + event);
+    return true;
   }
 
   private void setImmersiveSticky() {
