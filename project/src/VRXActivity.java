@@ -181,17 +181,43 @@ public class VRXActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    Log.i("VRX", "Got key event: " + event);
+    //Log.i("VRX", "Got key event: " + event);
 
     int action = event.getAction();
     if (action == KeyEvent.ACTION_MULTIPLE)
       return true;
 
-    if (xsrv != null && event.getKeyCode() == KeyEvent.KEYCODE_P)
-      xsrv.nativeMouseMotionEvent(100, 100);
+    if (xsrv == null)
+	return true;
 
-    if (xsrv != null)
-      xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    if (event.isAltPressed()
+	&& event.getKeyCode() >= KeyEvent.KEYCODE_DPAD_UP
+	&& event.getKeyCode() <= KeyEvent.KEYCODE_DPAD_RIGHT) {
+	int amount = 5;
+	if (event.isShiftPressed())
+	    amount = 30;
+
+	switch (event.getKeyCode()) {
+	case KeyEvent.KEYCODE_DPAD_UP:
+	    xsrv.nativeMouseMotionEvent(0, -amount);
+	    break;
+	case KeyEvent.KEYCODE_DPAD_DOWN:
+	    xsrv.nativeMouseMotionEvent(0, amount);
+	    break;
+	case KeyEvent.KEYCODE_DPAD_RIGHT:
+	    xsrv.nativeMouseMotionEvent(amount, 0);
+	    break;
+	case KeyEvent.KEYCODE_DPAD_LEFT:
+	    xsrv.nativeMouseMotionEvent(-amount, 0);
+	    break;
+	}
+	return true;
+    }
+
+    // if (event.getKeyCode() == KeyEvent.KEYCODE_P)
+    //   xsrv.nativeMouseMotionEvent(100, 100);
+
+    xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
     return true;
   }
 
