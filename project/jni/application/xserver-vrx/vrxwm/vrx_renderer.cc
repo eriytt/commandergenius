@@ -636,9 +636,9 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
   // glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
   //                    MatrixToGLArray(modelview_).data());
 
-  // Set the position of the cube
+  // Set the position of the window
   glVertexAttribPointer(wPos_param, kCoordsPerVertex, GL_FLOAT, false, 0,
-			world_layout_data_.WINDOW_COORDS.data());
+                        win->windowCoords.data());
   glEnableVertexAttribArray(wPos_param);
 
   CheckGLError("Drawing window: window position");
@@ -676,9 +676,9 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
   // }
 
 
-  glDrawArrays(GL_TRIANGLES, 0, 18);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
   CheckGLError("Drawing window");
-  glActiveTexture(GL_TEXTURE0);
+  //glActiveTexture(GL_TEXTURE0);
 }
 
 void VRXRenderer::DrawCube() {
@@ -813,14 +813,20 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 {
   windowMutex.lock();
   auto it = windows.find(w);
-  if (it != windows.end())
-    {
-      windowMutex.unlock();
-      return;
-    }
-  windows[w] = new VRXWindow(w);
+  if (it != windows.end()){
+    windowMutex.unlock();
+    return;
+  }
+  static int windowCount = -2;
+  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;
+  for( int i=0; i<6; ++i )
+  {
+    windowCoords[3*i] += 4.0*windowCount;
+  }
+  ++windowCount;
+  windows[w] = new VRXWindow(w, windowCoords);
   windowMutex.unlock();
-  LOGW("New window: %p", w);
+  LOGW("New window: %p, Upper left corner at %f %d", w, windowCoords[0], windowCount);
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
