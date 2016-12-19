@@ -37,6 +37,9 @@
  */
 
 #include <array>
+#include "vrx_types.h"
+
+
 
 class WorldLayoutData {
  public:
@@ -49,8 +52,8 @@ class WorldLayoutData {
   std::array<float, 72> FLOOR_NORMALS;
   std::array<float, 96> FLOOR_COLORS;
 
-  std::array<float, 18> WINDOW_COORDS;
-  std::array<float, 18> WINDOW_TEXCOORDS;
+  VrxWindowCoords WINDOW_COORDS;
+  VrxWindowTexCoords WINDOW_TEXCOORDS;
 
   WorldLayoutData() {
     CUBE_COORDS = {{
@@ -391,21 +394,21 @@ class WorldLayoutData {
 
     WINDOW_COORDS = {{
       // Front face
-      -1.0f,  1.0f,  1.0f,
-      -1.0f, -1.0f,  1.0f,
-       1.0f,  1.0f,  1.0f,
-      -1.0f, -1.0f,  1.0f,
-       1.0f, -1.0f,  1.0f,
-       1.0f,  1.0f,  1.0f,
+      -2.0f,  2.0f,  2.0f,
+      -2.0f, -2.0f,  2.0f,
+       2.0f,  2.0f,  2.0f,
+      -2.0f, -2.0f,  2.0f,
+       2.0f, -2.0f,  2.0f,
+       2.0f,  2.0f,  2.0f,
       }};
 
     WINDOW_TEXCOORDS = {{
-	0.0f, 0.0f, // v0
-	0.0f, 1.0f, // v1
-	1.0f, 0.0f, // v2
-	0.0f, 1.0f, // v1
-	1.0f, 1.0f, // v3
-	1.0f, 0.0f, // v2
+        0.0f, 0.0f, // v0
+        0.0f, 1.0f, // v1
+        1.0f, 0.0f, // v2
+        0.0f, 1.0f, // v1
+        1.0f, 1.0f, // v3
+        1.0f, 0.0f, // v2
       }};
   }
 };

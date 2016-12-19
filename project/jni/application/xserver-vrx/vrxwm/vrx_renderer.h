@@ -36,6 +36,7 @@ extern "C" {
 #include "world_layout_data.h"
 #include "wm.h"
 
+#include "vrx_types.h"
 
 struct VRXWindow
 {
@@ -43,7 +44,9 @@ struct VRXWindow
   void *buffer;
   gvr::Mat4f modelView;
   unsigned int texId;
-  VRXWindow(struct WindowHandle *w) : handle(w), buffer(nullptr) {}
+  VrxWindowCoords windowCoords;
+  VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
+    : handle(w), buffer(nullptr), windowCoords(initialPosition) {}
 };
 
 class VRXRenderer {
