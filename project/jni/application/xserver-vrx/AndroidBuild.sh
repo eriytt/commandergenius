@@ -32,6 +32,11 @@ cd $1
 	git clean -f -d -x .
 }
 
+
+# Megahack: set /proc/self/cwd as the X.org data dir, and chdir() to the correct directory when runngin X.org
+env TARGET_DIR=/proc/self/cwd \
+./build.sh || exit 1
+
 [ -d $CURDIR/vrxwm ] && {
     pushd $CURDIR/vrxwm
     ./android-build.sh $1 || exit 1
@@ -39,9 +44,6 @@ cd $1
     cp $CURDIR/vrxwm/build-$1/libvrxwm.a .
 } || exit 1
 
-# Megahack: set /proc/self/cwd as the X.org data dir, and chdir() to the correct directory when runngin X.org
-env TARGET_DIR=/proc/self/cwd \
-./build.sh || exit 1
 
 GVRSDK=$NDK/../gvr-android-sdk
 GVRNDK=$GVRSDK/ndk
