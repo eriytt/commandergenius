@@ -17,21 +17,6 @@ public class VRXServer implements Runnable{
     int exitcode = nativeRunX(mFilesDirectory);
   }
 
-  public int getFBPtr(int retries) {
-    int ptr = 0;
-    while ((ptr = nativeGetFrameBufferPointer()) == 0 && --retries > 0)
-      try {
-	Thread.sleep(1000);
-      } catch (InterruptedException e){
-	return 0;
-      }
-    return ptr;
-  }
-
-  public int getFBPtr() {
-    return getFBPtr(5);
-  }
-
   public void launch() {
     t = new Thread(this, "Server thread");
     t.start();
@@ -42,7 +27,6 @@ public class VRXServer implements Runnable{
   }
 
   private native int nativeRunX(String filesDirectory);
-  private native int nativeGetFrameBufferPointer();
   public native void nativeKeyEvent(int scancode, boolean down);
   public native void nativeMouseMotionEvent(int x, int y);
 }

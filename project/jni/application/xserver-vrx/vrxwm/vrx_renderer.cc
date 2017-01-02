@@ -260,7 +260,7 @@ static gvr::Sizei HalfPixelCount(const gvr::Sizei& in) {
 
 }  // namespace
 
-VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
+VRXRenderer::VRXRenderer(gvr_context* gvr_context)
     : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
       scratch_viewport_(gvr_api_->CreateBufferViewport()),
       floor_vertices_(nullptr),
@@ -273,10 +273,8 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context, unsigned char *fb)
       light_pos_world_space_({0.0f, 2.0f, 0.0f, 1.0f}),
       object_distance_(3.5f),
       floor_depth_(20.0f),
-      framebuffer(fb),
       wm(nullptr)
 {
-  LOGI("Framebuffer @%p", fb);
   VRXSetCallbacks(CreateWindow, DestroyWindow, this);
 }
 
@@ -332,8 +330,6 @@ void VRXRenderer::InitializeGl() {
   floor_vertices_ = world_layout_data_.FLOOR_COORDS.data();
   floor_normals_ = world_layout_data_.FLOOR_NORMALS.data();
   floor_colors_ = world_layout_data_.FLOOR_COLORS.data();
-
-  texname = CreateTexture(1024, 1024, framebuffer);
 
   int vertex_shader = LoadGLShader(GL_VERTEX_SHADER, &kLightVertexShader);
   int grid_shader = LoadGLShader(GL_FRAGMENT_SHADER, &kGridFragmentShader);
@@ -456,10 +452,6 @@ void VRXRenderer::DrawFrame() {
 
   int size = 1024;
 
-  glBindTexture(GL_TEXTURE_2D, texname);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size, size, 0, GL_RGBA,
-               GL_UNSIGNED_BYTE, framebuffer);
-
   viewport_list_->SetToRecommendedBufferViewports();
   gvr::Frame frame = swapchain_->AcquireFrame();
 
@@ -492,36 +484,39 @@ void VRXRenderer::DrawFrame() {
   for (auto wi : windows)
     {
       VRXWindow *w = wi.second;
-      unsigned int width, height;
-      void *fb = VRXGetWindowBuffer(w->handle, &width, &height);
-      if (fb != w->buffer)
+      unsigned int width, height, mapped;
+      void *fb = VRXGetWindowBuffer(w->handle, &width, &height, &mapped);
+      if (mapped)
 	{
-	  LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)", w->handle, w->buffer, fb, width, height);
+	  if (fb != w->buffer)
+	    {
+	      LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)", w->handle, w->buffer, fb, width, height);
 
-	  if (w->buffer == nullptr) {
-	    w->texId = CreateTexture(roundUpPow2(width), roundUpPow2(height));
-	    float object_distance = 3.5;
-	    w->modelView = {1.0f,   0.0f,    0.0f,             0.0f,
-			    0.0f,   1.0,     0.0f,             0.0f,
-			    0.0f,   0.0f,    1.0f, -object_distance,
-			    0.0f,   0.0f,    0.0f,             1.0f};
-	  }
+	      if (w->buffer == nullptr) {
+		w->texId = CreateTexture(roundUpPow2(width), roundUpPow2(height));
+		float object_distance = 3.5;
+		w->modelView = {1.0f,   0.0f,    0.0f,             0.0f,
+				0.0f,   1.0,     0.0f,             0.0f,
+				0.0f,   0.0f,    1.0f, -object_distance,
+				0.0f,   0.0f,    0.0f,             1.0f};
+	      }
 
-	  w->buffer = fb;
-	}
+	      w->buffer = fb;
+	    }
 
-      if (w->buffer != nullptr)
-	{
-	  glBindTexture(GL_TEXTURE_2D, w->texId);
-	  glTexSubImage2D(GL_TEXTURE_2D, 0,
-			  0, 0,
-			  width, height,
-			  GL_RGBA, GL_UNSIGNED_BYTE,
-			  w->buffer);
-	  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	  //glBindTexture(GL_TEXTURE_2D, 0);
-	  renderWindows.push_back(w);
+	  if (w->buffer != nullptr)
+	    {
+	      glBindTexture(GL_TEXTURE_2D, w->texId);
+	      glTexSubImage2D(GL_TEXTURE_2D, 0,
+			      0, 0,
+			      width, height,
+			      GL_RGBA, GL_UNSIGNED_BYTE,
+			      w->buffer);
+	      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	      //glBindTexture(GL_TEXTURE_2D, 0);
+	      renderWindows.push_back(w);
+	    }
 	}
     }
   windowMutex.unlock();
@@ -704,9 +699,6 @@ void VRXRenderer::DrawCube() {
   glEnableVertexAttribArray(cube_tex_coord_param_);
   glActiveTexture(GL_TEXTURE0);
 
-  glBindTexture(GL_TEXTURE_2D, texname);
-
-
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(cube_modelview_projection_param_, 1, GL_FALSE,
                      MatrixToGLArray(modelview_projection_cube_).data());
@@ -817,12 +809,12 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     windowMutex.unlock();
     return;
   }
-  static int windowCount = -2;
+  static int windowCount = -1;
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;
-  for( int i=0; i<6; ++i )
-  {
-    windowCoords[3*i] += 4.0*windowCount;
-  }
+  // for( int i=0; i<6; ++i )
+  // {
+  //   windowCoords[3*i] += 4.0*windowCount;
+  // }
   ++windowCount;
   windows[w] = new VRXWindow(w, windowCoords);
   windowMutex.unlock();

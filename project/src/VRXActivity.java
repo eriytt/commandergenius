@@ -79,16 +79,11 @@ public class VRXActivity extends Activity {
     // Initialize GvrLayout and the native renderer.
     gvrLayout = new GvrLayout(this);
 
-    int fbptr = xsrv.getFBPtr();
-    if (fbptr == 0)
-	throw new RuntimeException("xserver failed to alloc framebuffer");
-
     Log.i("VRX", "Creating native renderer");
     nativeVRXRenderer =
         nativeCreateRenderer(
             getClass().getClassLoader(),
             this.getApplicationContext(),
-	    fbptr,
             gvrLayout.getGvrApi().getNativeGvrContext());
 
     // Add the GLSurfaceView to the GvrLayout.
@@ -241,7 +236,6 @@ public class VRXActivity extends Activity {
 
   private native long nativeCreateRenderer(ClassLoader appClassLoader,
 					   Context context,
-					   long frameBuffer,
 					   long nativeGvrContext);
   private native void nativeDestroyRenderer(long nativeVRXRenderer);
   private native void nativeInitializeGl(long nativeVRXRenderer);

@@ -41,10 +41,8 @@ extern "C" {
 JNI_METHOD(jlong, nativeCreateRenderer)(JNIEnv *env, jclass clazz,
                                         jobject class_loader,
                                         jobject android_context,
-					jlong frameBuffer,
                                         jlong native_gvr_api) {
-  unsigned char *fb = reinterpret_cast<unsigned char*>(frameBuffer);
-  return jptr(new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api), fb));
+  return jptr(new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api)));
 }
 
 JNI_METHOD(void, nativeDestroyRenderer)

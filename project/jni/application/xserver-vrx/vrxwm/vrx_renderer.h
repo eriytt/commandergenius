@@ -56,7 +56,7 @@ class VRXRenderer {
    *
    * @param gvr_api The (non-owned) gvr_context.
    */
-  VRXRenderer(gvr_context* gvr_context, unsigned char *fb);
+  VRXRenderer(gvr_context* gvr_context);
 
   /**
    * Destructor.
@@ -200,9 +200,6 @@ class VRXRenderer {
   float floor_depth_;
 
   int windowProgram;
-
-  GLuint texname;
-  unsigned char *framebuffer;
 
   int wMVP_param;
   int wTex_param;

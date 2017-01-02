@@ -394,12 +394,12 @@ class WorldLayoutData {
 
     WINDOW_COORDS = {{
       // Front face
-      -2.0f,  2.0f,  2.0f,
-      -2.0f, -2.0f,  2.0f,
-       2.0f,  2.0f,  2.0f,
-      -2.0f, -2.0f,  2.0f,
-       2.0f, -2.0f,  2.0f,
-       2.0f,  2.0f,  2.0f,
+      -2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+       2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+       2.0f, -2.0f,  0.0f,
+       2.0f,  2.0f,  0.0f,
       }};
 
     WINDOW_TEXCOORDS = {{
