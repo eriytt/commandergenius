@@ -20,6 +20,9 @@
 #include <random>
 
 #include "common.h"
+#include "algebra.h"
+#include "cursor.h"
+#include "gl-utils.h"
 
 namespace {
 static const int kTextureFormat = GL_RGB;
@@ -143,43 +146,22 @@ static const char* kPassthroughFragmentShader =
   "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
   "}\n";
 
-  
-static std::array<float, 16> MatrixToGLArray(const gvr::Mat4f& matrix) {
-  // Note that this performs a *tranpose* to a column-major matrix array, as
-  // expected by GL.
-  std::array<float, 16> result;
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      result[j * 4 + i] = matrix.m[i][j];
-    }
-  }
-  return result;
-}
-
 static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
                                             const std::array<float, 4>& vec) {
   std::array<float, 4> result;
   for (int i = 0; i < 4; ++i) {
     result[i] = 0;
     for (int k = 0; k < 4; ++k) {
-      result[i] += matrix.m[i][k]*vec[k];
+      result[i] += matrix.m[i][k] * vec[k];
     }
   }
   return result;
 }
 
-static gvr::Mat4f MatrixMul(const gvr::Mat4f& matrix1,
-                            const gvr::Mat4f& matrix2) {
-  gvr::Mat4f result;
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      result.m[i][j] = 0.0f;
-      for (int k = 0; k < 4; ++k) {
-        result.m[i][j] += matrix1.m[i][k]*matrix2.m[k][j];
-      }
-    }
-  }
-  return result;
+static Vec4f MatrixVectorMul(const gvr::Mat4f& matrix,
+			     const Vec4f& vec) {
+  std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
+  return Vec4f(r[0], r[1], r[2], r[3]);
 }
 
 static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
@@ -242,14 +224,6 @@ static float RandomUniformFloat() {
   return random_distribution(random_generator);
 }
 
-static void CheckGLError(const char* label) {
-  int gl_error;
-  while ( (gl_error=glGetError()) != GL_NO_ERROR) {
-    LOGW("GL error @ %s: %d", label, gl_error);
-  }
-  assert(glGetError() == GL_NO_ERROR);
-}
-
 static gvr::Sizei HalfPixelCount(const gvr::Sizei& in) {
   // Scale each dimension by sqrt(2)/2 ~= 7/10ths.
   gvr::Sizei out;
@@ -273,7 +247,7 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
       light_pos_world_space_({0.0f, 2.0f, 0.0f, 1.0f}),
       object_distance_(3.5f),
       floor_depth_(20.0f),
-      wm(nullptr)
+      wm(nullptr), screenplane({0.0, 0.0, 1.0, 2.5})
 {
   VRXSetCallbacks(CreateWindow, DestroyWindow, this);
 }
@@ -281,41 +255,6 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
 VRXRenderer::~VRXRenderer() {
 }
 
-static GLuint CreateTexture(int size_x, int size_y, uint8_t *framebuffer = nullptr)
-{
-  uint8_t * source_buf = framebuffer;
-
-  if (not source_buf)
-    {
-      LOGI("Creating dummy texture");
-      source_buf = new uint8_t[size_x * size_y * 4];
-      for (int x = 0; x < size_x; ++x)
-	for (int y = 0; y < size_y; ++y)
-	  {
-	    unsigned int pixel_index = (x * size_y + y);
-	    uint8_t *pixel = &source_buf[pixel_index * 4];
-	    pixel[0] = static_cast<uint8_t>(0xff);
-	    pixel[1] = static_cast<uint8_t>((x + y) & 0xff);
-	    pixel[2] = static_cast<uint8_t>((x + y) & 0xff);
-	    pixel[3] = static_cast<uint8_t>(0xff);
-	  }
-      LOGI("Texture data initialized");
-    }
-
-  GLuint tex_id;
-  glGenTextures(1, &tex_id);
-  glBindTexture(GL_TEXTURE_2D, tex_id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size_x, size_y, 0, GL_RGBA,
-               GL_UNSIGNED_BYTE, source_buf);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_2D, 0);
-  CHECK(glGetError() == GL_NO_ERROR);
-  if (not framebuffer)
-    delete[] source_buf;
-  LOGI("Creating texture done");
-  return tex_id;
-}
 
 void VRXRenderer::InitializeGl() {
   gvr_api_->InitializeGl();
@@ -420,6 +359,9 @@ void VRXRenderer::InitializeGl() {
   viewport_list_.reset(new gvr::BufferViewportList(
       gvr_api_->CreateEmptyBufferViewportList()));
 
+  if (not VRXCursor::InitGL())
+    LOGE("Failed to initialize cursor");
+
   LOGI("OpenGL initialized");
 
   wm = WindowManager::Create(":0");
@@ -444,7 +386,7 @@ static inline unsigned int roundUpPow2(unsigned int v)
 }
 
 #include <unistd.h>
-
+#define M_PI_8 (M_PI_4 / 2.0)
 void VRXRenderer::DrawFrame() {
   wm->Run();
 
@@ -466,6 +408,10 @@ void VRXRenderer::DrawFrame() {
   gvr::Mat4f right_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE);
   gvr::Mat4f left_eye_view = MatrixMul(left_eye_matrix, head_view_);
   gvr::Mat4f right_eye_view = MatrixMul(right_eye_matrix, head_view_);
+
+  Vec4f mouse_vector = MatrixVectorMul(head_view_, Vec4f{0.0f, 0.0f, 1.0f, 0.0f});
+  Vec4f isect = screenplane.intersectLine(mouse_vector);
+  VRXCursor::SetCursorPosition(isect);
 
   frame.BindBuffer(0);
   glEnable(GL_DEPTH_TEST);
@@ -522,7 +468,7 @@ void VRXRenderer::DrawFrame() {
   windowMutex.unlock();
 
   CheckGLError("onDrawFrame");
-  //sleep(1);
+  //usleep(100000);
 }
 
 void VRXRenderer::PrepareFramebuffer() {
@@ -560,24 +506,6 @@ void VRXRenderer::OnResume() {
  * @param resId The resource ID of the raw text file.
  * @return The shader object handler.
  */
-int VRXRenderer::LoadGLShader(int type, const char** shadercode) {
-  int shader = glCreateShader(type);
-  glShaderSource(shader, 1, shadercode, nullptr);
-  glCompileShader(shader);
-
-  // Get the compilation status.
-  int* compileStatus = new int[1];
-  glGetShaderiv(shader, GL_COMPILE_STATUS, compileStatus);
-
-  // If the compilation failed, delete the shader.
-  if (compileStatus[0] == 0) {
-    LOGE("Shader compilation failed");
-    glDeleteShader(shader);
-    shader = 0;
-  }
-
-  return shader;
-}
 
 /**
  * Draws a frame for an eye.
@@ -608,6 +536,9 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   modelview_projection_cube_ = MatrixMul(perspective, modelview_);
   //DrawCube();
 
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_BLEND);
+
   // Set modelview_ for the floor, so we draw floor in the correct location
   modelview_ = MatrixMul(view_matrix, model_floor_);
   modelview_projection_floor_ = MatrixMul(perspective, modelview_);
@@ -617,6 +548,8 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
 
   for (auto w: renderWindows)
     DrawWindow(w, mvp);
+
+  VRXCursor::Draw(mvp);
 }
 
 void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
@@ -650,7 +583,7 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
 
   CheckGLError("Drawing window: window texture bind");
 
-  gvr::Mat4f wmat = MatrixMul(mvp , win->modelView);
+  gvr::Mat4f wmat = MatrixMul(mvp, win->modelView);
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(wMVP_param, 1, GL_FALSE,
                      MatrixToGLArray(wmat).data());
@@ -786,19 +719,7 @@ void VRXRenderer::HideObject() {
 }
 
 bool VRXRenderer::IsLookingAtObject() {
-  static const float kPitchLimit = 0.12f;
-  static const float kYawLimit = 0.12f;
-
-  gvr::Mat4f modelview =
-      MatrixMul(head_view_, model_cube_);
-
-  std::array<float, 4> temp_position =
-      MatrixVectorMul(modelview, {0.f, 0.f, 0.f, 1.f});
-
-  float pitch = std::atan2(temp_position[1], -temp_position[2]);
-  float yaw = std::atan2(temp_position[0], -temp_position[2]);
-
-  return std::abs(pitch) < kPitchLimit && std::abs(yaw) < kYawLimit;
+  return false;
 }
 
 void VRXRenderer::handleCreateWindow(struct WindowHandle *w)

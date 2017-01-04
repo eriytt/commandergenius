@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <cstdlib>
 #include <android/log.h>
 
 #define LOG_TAG "VRXWM"
@@ -22,5 +23,7 @@ T* CHECK_NOTNULL(T* ptr)
   CHECK_NE(ptr, nullptr);
   return ptr;
 }
+
+#define POW2(x) ((x) * (x))
 
 #endif // COMMON_H

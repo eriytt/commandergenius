@@ -35,6 +35,7 @@ extern "C" {
 #include "vr/gvr/capi/include/gvr_types.h"
 #include "world_layout_data.h"
 #include "wm.h"
+#include "algebra.h"
 
 #include "vrx_types.h"
 
@@ -95,15 +96,6 @@ class VRXRenderer {
    * Prepares the GvrApi framebuffer for rendering, resizing if needed.
    */
   void PrepareFramebuffer();
-
-  /**
-   * Converts a raw text file, saved as a resource, into an OpenGL ES shader.
-   *
-   * @param type  The type of shader we will be creating.
-   * @param resId The resource ID of the raw text file.
-   * @return The shader object handler.
-   */
-  int LoadGLShader(int type, const char** shadercode);
 
   /**
    * Draws a frame for an eye.
@@ -218,6 +210,8 @@ class VRXRenderer {
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
   std::list<const VRXWindow *> renderWindows;
+
+  Planef screenplane;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT
