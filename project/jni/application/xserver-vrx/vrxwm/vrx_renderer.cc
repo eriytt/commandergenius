@@ -182,6 +182,23 @@ static gvr::Mat4f MatrixMul(const gvr::Mat4f& matrix1,
   return result;
 }
 
+static gvr::Mat4f MatrixInverseRotation(const gvr::Mat4f& matrix) 
+{
+  gvr::Mat4f result;
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      result.m[i][j] = matrix.m[j][i];
+    }
+  }
+  for (int i = 0; i < 3; ++i) {
+    result.m[i][3] = -1*( result.m[i][0]*matrix.m[0][3] 
+                        + result.m[i][1]*matrix.m[1][3]
+                        + result.m[i][2]*matrix.m[2][3]);
+  }
+  result.m[3][3] = 1.0;
+  return result;
+}
+
 static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
                                             float z_far) {
   gvr::Mat4f result;
@@ -655,10 +672,10 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
 
   CheckGLError("Drawing window: window texture bind");
 
-  gvr::Mat4f wmat = MatrixMul(mvp , win->modelView);
+  //gvr::Mat4f wmat = MatrixMul(mvp , win->modelView);
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(wMVP_param, 1, GL_FALSE,
-                     MatrixToGLArray(wmat).data());
+                     MatrixToGLArray(mvp).data());
 
   CheckGLError("Drawing window: view matrix");
 
@@ -809,6 +826,26 @@ bool VRXRenderer::IsLookingAtObject() {
   return std::abs(pitch) < kPitchLimit && std::abs(yaw) < kYawLimit;
 }
 
+static
+std::array<float, 4> getPointArray( const VrxWindowCoords& windowCoords, uint8_t pointNumber)
+{
+  std::array<float, 4> result;
+  result[0] = windowCoords[3*pointNumber];
+  result[1] = windowCoords[3*pointNumber+1];
+  result[2] = windowCoords[3*pointNumber+2];
+  result[3] = 1.0;
+  
+  return result;
+}
+
+static
+void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, uint8_t pointNumber)
+{
+  windowCoords[3*pointNumber] = point[0];
+  windowCoords[3*pointNumber+1] = point[1];
+  windowCoords[3*pointNumber+2] = point[2];
+}
+
 void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 {
   windowMutex.lock();
@@ -818,10 +855,14 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     return;
   }
   static int windowCount = -2;
-  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;
+  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates      
+  gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);   // Get Rotation matrix for where we are currently looking
   for( int i=0; i<6; ++i )
   {
-    windowCoords[3*i] += 4.0*windowCount;
+    // Get each point from the windowCoords and rotate them to where we are looking
+    std::array<float, 4> point = getPointArray(windowCoords, i);
+    std::array<float, 4> newPosition = MatrixVectorMul(headInverse, point);
+    setPointArray(windowCoords, newPosition, i);    // Write back new position
   }
   ++windowCount;
   windows[w] = new VRXWindow(w, windowCoords);
