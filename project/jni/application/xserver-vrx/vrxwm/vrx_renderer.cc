@@ -750,7 +750,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     windowMutex.unlock();
     return;
   }
-  static int windowCount = -2;
+
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
   gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);   // Get Rotation matrix for where we are currently looking
   for( int i=0; i<6; ++i )
@@ -760,10 +760,10 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     std::array<float, 4> newPosition = MatrixVectorMul(headInverse, point);
     setPointArray(windowCoords, newPosition, i);    // Write back new position
   }
-  ++windowCount;
+
   windows[w] = new VRXWindow(w, windowCoords);
   windowMutex.unlock();
-  LOGW("New window: %p, Upper left corner at %f %d", w, windowCoords[0], windowCount);
+  LOGW("New window: %p, Upper left corner at %f", w, windowCoords[0]);
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
