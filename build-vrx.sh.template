@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# This script sets up all environment variables for using commander genius to build VRX
+# CopReplace template examples with your real paths.
+
+# Various paths for Android SDK and NDK must be setup
+SDK=/PATH/TO/android-sdks
+NDK=/PATH/TO/android-ndk-r12b
+
+# Java may need configuring.
+# Conflicting Java versions may give this error: "Unsupported major.minor version 52.0"
+# If you need to override your default JDK, uncomment below and set the proper path. 
+#JAVA_HOME=/PATH/TO/jdk1.8.0_111
+#export JAVA_HOME
+#PATH=$JAVA_HOME/bin:$PATH
+
+# Set bin paths
+PATH=$PATH:$SDK/tools:$SDK/platform-tools:$SDK/build-tools/24.0.0:$NDK:$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin:$NDK/toolchains/x86-4.9/prebuilt/linux-x86_64/bin 
+export PATH
+
+# Call commander genious build script
+./build.sh $@
+
+
+# Use the below commands to checkout all code and build
+  # git clone -b master git@github.com:eriytt/commandergenius.git cg-vrx
+  # cd cg-vrx/
+  # ./prepare_submodules.sh
+  # cp build-vrx.sh.template ../build-vrx.sh
+# edit template as necessary
+  # ../build-vrx.sh
+
+

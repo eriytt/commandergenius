@@ -583,10 +583,10 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
 
   CheckGLError("Drawing window: window texture bind");
 
-  gvr::Mat4f wmat = MatrixMul(mvp, win->modelView);
+  //gvr::Mat4f wmat = MatrixMul(mvp, win->modelView);
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(wMVP_param, 1, GL_FALSE,
-                     MatrixToGLArray(wmat).data());
+                     MatrixToGLArray(mvp).data());
 
   CheckGLError("Drawing window: view matrix");
 
@@ -722,6 +722,26 @@ bool VRXRenderer::IsLookingAtObject() {
   return false;
 }
 
+static
+std::array<float, 4> getPointArray( const VrxWindowCoords& windowCoords, uint8_t pointNumber)
+{
+  std::array<float, 4> result;
+  result[0] = windowCoords[3*pointNumber];
+  result[1] = windowCoords[3*pointNumber+1];
+  result[2] = windowCoords[3*pointNumber+2];
+  result[3] = 1.0;
+  
+  return result;
+}
+
+static
+void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, uint8_t pointNumber)
+{
+  windowCoords[3*pointNumber] = point[0];
+  windowCoords[3*pointNumber+1] = point[1];
+  windowCoords[3*pointNumber+2] = point[2];
+}
+
 void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 {
   windowMutex.lock();
@@ -730,12 +750,16 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     windowMutex.unlock();
     return;
   }
-  static int windowCount = -1;
-  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;
-  // for( int i=0; i<6; ++i )
-  // {
-  //   windowCoords[3*i] += 4.0*windowCount;
-  // }
+  static int windowCount = -2;
+  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
+  gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);   // Get Rotation matrix for where we are currently looking
+  for( int i=0; i<6; ++i )
+  {
+    // Get each point from the windowCoords and rotate them to where we are looking
+    std::array<float, 4> point = getPointArray(windowCoords, i);
+    std::array<float, 4> newPosition = MatrixVectorMul(headInverse, point);
+    setPointArray(windowCoords, newPosition, i);    // Write back new position
+  }
   ++windowCount;
   windows[w] = new VRXWindow(w, windowCoords);
   windowMutex.unlock();
