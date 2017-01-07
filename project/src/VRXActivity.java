@@ -29,6 +29,10 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
+
+import java.net.*;
+import java.util.*;  
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -151,6 +155,9 @@ public class VRXActivity extends Activity {
     super.onResume();
     nativeOnResume(nativeVRXRenderer);
     gvrLayout.onResume();
+    String ipInfo = new String("IP address: ");
+    ipInfo += getIPAddress(true);
+    Toast.makeText(this, ipInfo, Toast.LENGTH_LONG).show();
   }
 
   @Override
@@ -234,6 +241,31 @@ public class VRXActivity extends Activity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
   }
 
+  public static String getIPAddress(boolean useIPv4) {
+    try {
+      List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+      for (NetworkInterface intf : interfaces) {
+        List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+        for (InetAddress addr : addrs) {
+          if (!addr.isLoopbackAddress()) {
+            String sAddr = addr.getHostAddress();
+            boolean isIPv4 = sAddr.indexOf(':')<0;
+
+            if (useIPv4) {
+              if (isIPv4) 
+                return sAddr;
+            } else {
+              if (!isIPv4) {
+                int delim = sAddr.indexOf('%'); // drop ip6 zone suffix
+                  return delim<0 ? sAddr.toUpperCase() : sAddr.substring(0, delim).toUpperCase();
+                }
+            }
+          }
+        }
+      }
+    } catch (Exception ex) { } // for now eat exceptions
+    return "";
+  }
   private native long nativeCreateRenderer(ClassLoader appClassLoader,
 					   Context context,
 					   long nativeGvrContext);
