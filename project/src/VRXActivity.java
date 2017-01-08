@@ -183,7 +183,7 @@ public class VRXActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    //Log.i("VRX", "Got key event: " + event);
+    Log.i("VRX", "Got key event: " + event);
 
     int action = event.getAction();
     if (action == KeyEvent.ACTION_MULTIPLE)
@@ -219,6 +219,8 @@ public class VRXActivity extends Activity {
     // if (event.getKeyCode() == KeyEvent.KEYCODE_P)
     //   xsrv.nativeMouseMotionEvent(100, 100);
 
+    nativeWMEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    
     xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
     return true;
   }
@@ -275,4 +277,5 @@ public class VRXActivity extends Activity {
   private native void nativeOnTriggerEvent(long nativeVRXRenderer);
   private native void nativeOnPause(long nativeVRXRenderer);
   private native void nativeOnResume(long nativeVRXRenderer);
+  private native void nativeWMEvent(int scancode, boolean down);
 }

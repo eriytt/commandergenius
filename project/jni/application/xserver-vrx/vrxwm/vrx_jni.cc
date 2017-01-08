@@ -20,6 +20,7 @@
 
 #include "vr/gvr/capi/include/gvr.h"
 #include "vrx_renderer.h"
+#include "common.h"
 
 #define JNI_METHOD(return_type, method_name) \
   JNIEXPORT return_type JNICALL              \
@@ -74,5 +75,12 @@ JNI_METHOD(void, nativeOnResume)(JNIEnv *env, jobject obj,
                                  jlong native_treasure_hunt) {
   native(native_treasure_hunt)->OnResume();
 }
+
+JNI_METHOD(void, nativeWMEvent)(JNIEnv *env, jobject thiz, jint scancode, jboolean down) {
+  LOGI("nativeWMEvent key event, scancode %d, down = %d", scancode, down);
+
+
+}
+
 
 }  // extern "C"
