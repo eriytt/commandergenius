@@ -438,14 +438,8 @@ void VRXRenderer::DrawFrame() {
 	    {
 	      LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)", w->handle, w->buffer, fb, width, height);
 
-	      if (w->buffer == nullptr) {
+	      if (w->buffer == nullptr)
 		w->texId = CreateTexture(roundUpPow2(width), roundUpPow2(height));
-		float object_distance = 3.5;
-		w->modelView = {1.0f,   0.0f,    0.0f,             0.0f,
-				0.0f,   1.0,     0.0f,             0.0f,
-				0.0f,   0.0f,    1.0f, -object_distance,
-				0.0f,   0.0f,    0.0f,             1.0f};
-	      }
 
 	      w->buffer = fb;
 	    }
@@ -583,10 +577,10 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
 
   CheckGLError("Drawing window: window texture bind");
 
-  //gvr::Mat4f wmat = MatrixMul(mvp, win->modelView);
+  gvr::Mat4f m = MatrixMul(mvp, win->modelView);
   // Set the ModelViewProjection matrix in the shader.
   glUniformMatrix4fv(wMVP_param, 1, GL_FALSE,
-                     MatrixToGLArray(mvp).data());
+                     MatrixToGLArray(m).data());
 
   CheckGLError("Drawing window: view matrix");
 
@@ -752,18 +746,19 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   }
 
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
-  gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);   // Get Rotation matrix for where we are currently looking
-  for( int i=0; i<6; ++i )
-  {
-    // Get each point from the windowCoords and rotate them to where we are looking
-    std::array<float, 4> point = getPointArray(windowCoords, i);
-    std::array<float, 4> newPosition = MatrixVectorMul(headInverse, point);
-    setPointArray(windowCoords, newPosition, i);    // Write back new position
-  }
 
-  windows[w] = new VRXWindow(w, windowCoords);
+  gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);
+  auto vw = new VRXWindow(w, windowCoords);
+  float object_distance = 4.5;
+  gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,             0.0f,
+                      0.0f,   1.0,     0.0f,             0.0f,
+                      0.0f,   0.0f,    1.0f, -object_distance,
+                      0.0f,   0.0f,    0.0f,             1.0f};
+
+  vw->modelView = MatrixMul(headInverse, trans);
+  windows[w] = vw;
   windowMutex.unlock();
-  LOGW("New window: %p, Upper left corner at %f", w, windowCoords[0]);
+
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
