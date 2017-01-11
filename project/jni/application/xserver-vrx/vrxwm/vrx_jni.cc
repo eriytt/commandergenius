@@ -17,6 +17,7 @@
 #include <jni.h>
 
 #include <memory>
+#include <linux/input.h>
 
 #include "vr/gvr/capi/include/gvr.h"
 #include "vrx_renderer.h"
@@ -28,8 +29,8 @@
 
 namespace {
 
-inline jlong jptr(VRXRenderer *native_treasure_hunt) {
-  return reinterpret_cast<intptr_t>(native_treasure_hunt);
+inline jlong jptr(VRXRenderer *native_vrx_pointer) {
+  return reinterpret_cast<intptr_t>(native_vrx_pointer);
 }
 
 inline VRXRenderer *native(jlong ptr) {
@@ -47,39 +48,96 @@ JNI_METHOD(jlong, nativeCreateRenderer)(JNIEnv *env, jclass clazz,
 }
 
 JNI_METHOD(void, nativeDestroyRenderer)
-(JNIEnv *env, jclass clazz, jlong native_treasure_hunt) {
-  delete native(native_treasure_hunt);
+(JNIEnv *env, jclass clazz, jlong native_vrx_pointer) {
+  delete native(native_vrx_pointer);
 }
 
 JNI_METHOD(void, nativeInitializeGl)(JNIEnv *env, jobject obj,
-                                     jlong native_treasure_hunt) {
-  native(native_treasure_hunt)->InitializeGl();
+                                     jlong native_vrx_pointer) {
+  native(native_vrx_pointer)->InitializeGl();
 }
 
 JNI_METHOD(void, nativeDrawFrame)(JNIEnv *env, jobject obj,
-                                  jlong native_treasure_hunt) {
-  native(native_treasure_hunt)->DrawFrame();
+                                  jlong native_vrx_pointer) {
+  native(native_vrx_pointer)->DrawFrame();
 }
 
 JNI_METHOD(void, nativeOnTriggerEvent)(JNIEnv *env, jobject obj,
-                                       jlong native_treasure_hunt) {
-  native(native_treasure_hunt)->OnTriggerEvent();
+                                       jlong native_vrx_pointer) {
+  native(native_vrx_pointer)->OnTriggerEvent();
 }
 
 JNI_METHOD(void, nativeOnPause)(JNIEnv *env, jobject obj,
-                                jlong native_treasure_hunt) {
-  native(native_treasure_hunt)->OnPause();
+                                jlong native_vrx_pointer) {
+  native(native_vrx_pointer)->OnPause();
 }
 
 JNI_METHOD(void, nativeOnResume)(JNIEnv *env, jobject obj,
-                                 jlong native_treasure_hunt) {
-  native(native_treasure_hunt)->OnResume();
+                                 jlong native_vrx_pointer) {
+  native(native_vrx_pointer)->OnResume();
 }
 
-JNI_METHOD(void, nativeWMEvent)(JNIEnv *env, jobject thiz, jint scancode, jboolean down) {
+bool isModifierKey(int keyCode)
+{
+  switch( keyCode )
+  {
+    case KEY_LEFTCTRL:
+    case KEY_RIGHTCTRL:
+    case KEY_LEFTSHIFT:
+    case KEY_RIGHTSHIFT:
+    case KEY_LEFTALT:
+    case KEY_RIGHTALT:
+      return true;
+      
+    default:
+      return false;
+  }
+}
+
+JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_pointer, jint scancode, jboolean down) {
   LOGI("nativeWMEvent key event, scancode %d, down = %d", scancode, down);
 
+  VRXRenderer* vrxRenderer = native(native_vrx_pointer);
+  vrxRenderer->keyMap().setKey(scancode, down);
 
+  // In command mode: trap everything except modifier keys
+  // Ignore key down. action is on key up.
+  if (!vrxRenderer->keyMap().isCommandMode)
+  {
+    //CMD key
+    if (scancode==vrxRenderer->keyMap().commandKey && vrxRenderer->keyMap().getKey(KEY_LEFTCTRL))
+    {
+      if (down){ return 1; }
+      
+      LOGI("\n\nnativeWMEvent Enter command mode\n\n");
+      vrxRenderer->keyMap().isCommandMode = true;
+      return 1;
+    }
+
+    return 0;    // Normal mode - let key through
+  }
+
+  // TODO Handle command mode
+  // if valid command :  execute cmd and exit command mode
+  // else: exit command mode anyway
+  if (isModifierKey(scancode)){ return 0; }
+  
+
+  if (down){ return 1; }    // Ignore down
+
+  if (scancode==KEY_A)
+  {
+    vrxRenderer->focusMRUWindow(1); // Take second window and move to front;
+  }
+
+  if (scancode==KEY_M)
+  {
+    vrxRenderer->toggleMoveFocusedWindow();
+  }
+
+  // Not any known command: exit command mode, but trap key
+  vrxRenderer->keyMap().isCommandMode = false;
+  return 1;
 }
 
 

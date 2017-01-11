@@ -219,7 +219,12 @@ public class VRXActivity extends Activity {
     // if (event.getKeyCode() == KeyEvent.KEYCODE_P)
     //   xsrv.nativeMouseMotionEvent(100, 100);
 
-    nativeWMEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    int keyTrapped = nativeWMEvent(nativeVRXRenderer, event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    if (keyTrapped==1)
+    {
+      Log.i("VRX", "Key Trapped");
+      return true;
+    }
     
     xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
     return true;
@@ -277,5 +282,5 @@ public class VRXActivity extends Activity {
   private native void nativeOnTriggerEvent(long nativeVRXRenderer);
   private native void nativeOnPause(long nativeVRXRenderer);
   private native void nativeOnResume(long nativeVRXRenderer);
-  private native void nativeWMEvent(int scancode, boolean down);
+  private native int nativeWMEvent(long nativeVRXRenderer, int scancode, boolean down);
 }

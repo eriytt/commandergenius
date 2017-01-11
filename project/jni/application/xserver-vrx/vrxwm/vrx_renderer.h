@@ -27,6 +27,8 @@
 #include <map>
 #include <list>
 
+#include <linux/input.h>
+
 extern "C" {
 #include <vrxexport.h>
 }
@@ -48,6 +50,26 @@ struct VRXWindow
   VrxWindowCoords windowCoords;
   VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
     : handle(w), buffer(nullptr), windowCoords(initialPosition) {}
+};
+
+class KeyMap
+{
+public:
+  int commandKey = KEY_A;
+  bool isCommandMode = false;
+  void setKey(int code, uint8_t isDown)
+  {
+    if (code < 256) keys[code] = isDown;
+  }
+  
+  uint8_t getKey(int code)
+  {
+    if (code < 256) return keys[code];
+    
+    return 0;
+  }
+private:
+  uint8_t keys[256];
 };
 
 class VRXRenderer {
@@ -90,6 +112,11 @@ class VRXRenderer {
    */
   void OnResume();
 
+  KeyMap& keyMap();
+  
+  void focusMRUWindow(uint16_t num);
+  
+  void toggleMoveFocusedWindow();
  private:
 
   /*
@@ -139,6 +166,9 @@ class VRXRenderer {
    * @return true if the user is looking at the object.
    */
   bool IsLookingAtObject();
+  
+  bool isFocused(const VRXWindow * win);
+  
 
   std::unique_ptr<gvr::GvrApi> gvr_api_;
   std::unique_ptr<gvr::BufferViewportList> viewport_list_;
@@ -210,8 +240,13 @@ class VRXRenderer {
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
   std::list<const VRXWindow *> renderWindows;
+  std::list<const VRXWindow *> focusedWindows;
 
   Planef screenplane;
+  
+  KeyMap mKeyMap;
+  
+  bool moveFocusedWindow = false;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

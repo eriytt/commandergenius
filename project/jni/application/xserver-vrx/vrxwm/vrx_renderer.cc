@@ -762,6 +762,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   }
   ++windowCount;
   windows[w] = new VRXWindow(w, windowCoords);
+  focusedWindows.push_front(windows[w]);
   windowMutex.unlock();
   LOGW("New window: %p, Upper left corner at %f %d", w, windowCoords[0], windowCount);
 }
@@ -773,12 +774,56 @@ void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
   LOGI("Destroy window: size before destroy: %d", windows.size());
   auto it = windows.find(w);
   if (it == windows.end())
-    {
+  {
       windowMutex.unlock();
       LOGE("We don't know anything about this window!");
       return;
-    }
+  }
+  
+  focusedWindows.remove(it->second);
   windows.erase(it);
   LOGI("Destroy window: size after destroy: %d", windows.size());
   windowMutex.unlock();
 }
+
+
+void VRXRenderer::focusMRUWindow(uint16_t num)
+{
+  // Take win #num in Most Recently Used list and move to front
+  if (focusedWindows.size() == 0){ return; }
+
+  num = num % focusedWindows.size();
+  
+  auto it = focusedWindows.begin();
+  while(num>0)
+  {
+    it++;
+    --num;
+  }
+  
+  auto tempWinPtr = *it;
+  focusedWindows.erase(it);
+  focusedWindows.push_front(tempWinPtr);
+  LOGI("Window focused: %p", tempWinPtr->handle);
+
+}
+
+
+bool VRXRenderer::isFocused(const VRXWindow * win)
+{
+  return win==focusedWindows.front();
+}
+
+
+KeyMap& VRXRenderer::keyMap()
+{
+  return mKeyMap;
+}
+  
+void VRXRenderer::toggleMoveFocusedWindow()
+{
+  moveFocusedWindow = !moveFocusedWindow;
+  LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
+};
+
+
