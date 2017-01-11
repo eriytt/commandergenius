@@ -130,6 +130,24 @@ JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_poin
     vrxRenderer->focusMRUWindow(1); // Take second window and move to front;
   }
 
+  if (scancode==KEY_B)
+  {
+    vrxRenderer->changeWindowSize(0.3);
+  }
+  if (scancode==KEY_S)
+  {
+    vrxRenderer->changeWindowSize(-0.3);
+  }
+  
+  if (scancode==KEY_C)
+  {
+    vrxRenderer->changeWindowDistance(-0.3);
+  }
+  if (scancode==KEY_F)
+  {
+    vrxRenderer->changeWindowDistance(0.3);
+  }
+
   if (scancode==KEY_M)
   {
     vrxRenderer->toggleMoveFocusedWindow();

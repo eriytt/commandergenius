@@ -46,10 +46,15 @@ struct VRXWindow
   struct WindowHandle *handle;
   void *buffer;
   gvr::Mat4f modelView;
+  gvr::Mat4f rotation;
   unsigned int texId;
   VrxWindowCoords windowCoords;
-  VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
-    : handle(w), buffer(nullptr), windowCoords(initialPosition) {}
+  float windowDistance = 3; // z-coord before rotation
+  float windowSize = 1;     // width of window is 2*windowSize
+
+  VRXWindow(struct WindowHandle *w, const gvr::Mat4f& initialRotation);
+
+  void moveWindow();
 };
 
 class KeyMap
@@ -117,6 +122,9 @@ class VRXRenderer {
   void focusMRUWindow(uint16_t num);
   
   void toggleMoveFocusedWindow();
+  
+  void changeWindowSize(float sizeDiff);
+  void changeWindowDistance(float distanceDiff);
  private:
 
   /*
@@ -140,7 +148,7 @@ class VRXRenderer {
    */
   void DrawCube();
 
-  void DrawWindow(const VRXWindow *win, const gvr::Mat4f &perspective);
+  void DrawWindow(VRXWindow *win, const gvr::Mat4f &perspective);
 
   /**
    * Draw the floor.
@@ -239,8 +247,8 @@ class VRXRenderer {
 
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
-  std::list<const VRXWindow *> renderWindows;
-  std::list<const VRXWindow *> focusedWindows;
+  std::list<VRXWindow *> renderWindows;
+  std::list<VRXWindow *> focusedWindows;
 
   Planef screenplane;
   

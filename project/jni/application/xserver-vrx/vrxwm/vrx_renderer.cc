@@ -552,7 +552,7 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   VRXCursor::Draw(mvp);
 }
 
-void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
+void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
 {
   glUseProgram(windowProgram);
 
@@ -564,6 +564,12 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
   // glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
   //                    MatrixToGLArray(modelview_).data());
 
+  if (moveFocusedWindow && isFocused(win))
+  {
+    win->rotation = MatrixInverseRotation(head_view_);
+    win->moveWindow();
+  }
+  
   // Set the position of the window
   glVertexAttribPointer(wPos_param, kCoordsPerVertex, GL_FLOAT, false, 0,
                         win->windowCoords.data());
@@ -750,21 +756,13 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
     windowMutex.unlock();
     return;
   }
-  static int windowCount = -2;
-  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
+
   gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);   // Get Rotation matrix for where we are currently looking
-  for( int i=0; i<6; ++i )
-  {
-    // Get each point from the windowCoords and rotate them to where we are looking
-    std::array<float, 4> point = getPointArray(windowCoords, i);
-    std::array<float, 4> newPosition = MatrixVectorMul(headInverse, point);
-    setPointArray(windowCoords, newPosition, i);    // Write back new position
-  }
-  ++windowCount;
-  windows[w] = new VRXWindow(w, windowCoords);
+
+  windows[w] = new VRXWindow(w, headInverse);
   focusedWindows.push_front(windows[w]);
   windowMutex.unlock();
-  LOGW("New window: %p, Upper left corner at %f %d", w, windowCoords[0], windowCount);
+  LOGW("New window: %p", w);
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
@@ -826,4 +824,58 @@ void VRXRenderer::toggleMoveFocusedWindow()
   LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
 };
 
+void VRXRenderer::changeWindowSize(float sizeDiff)
+{
+    if (sizeDiff<0 &&focusedWindows.front()->windowSize <= -sizeDiff) return;
+    
+    focusedWindows.front()->windowSize += sizeDiff;
+    focusedWindows.front()->moveWindow();
+}
+
+void VRXRenderer::changeWindowDistance(float distanceDiff)
+{
+    if (distanceDiff<0 &&focusedWindows.front()->windowDistance <= -distanceDiff) return;
+    
+    focusedWindows.front()->windowDistance += distanceDiff;
+    focusedWindows.front()->moveWindow();
+}
+
+VRXWindow::VRXWindow(struct WindowHandle *w, const gvr::Mat4f& initialRotation) 
+  : handle(w), buffer(nullptr), rotation(initialRotation) 
+{
+    moveWindow();
+}
+
+  
+static constexpr VrxWindowCoords WINDOW_BASE_COORDS = {{
+      -1.0f,  1.0f,  0,
+      -1.0f, -1.0f,  0,
+       1.0f,  1.0f,  0,
+      -1.0f, -1.0f,  0,
+       1.0f, -1.0f,  0,
+       1.0f,  1.0f,  0,
+      }};
+
+void VRXWindow::moveWindow()
+{
+    VrxWindowCoords baseCoords = WINDOW_BASE_COORDS;
+    
+    for( float& x : baseCoords )
+    {
+      x = x*windowSize;     // Z is still zero here so multiplication works
+    }
+    for( int i=0; i<6; ++i )
+    {
+      baseCoords[3*i + 2] = -windowDistance; // Set distance
+    }
+
+    for( int i=0; i<6; ++i )
+    {
+      // Get each point from baseCoords and rotate them to where we are looking
+      std::array<float, 4> point = getPointArray(baseCoords, i);
+      std::array<float, 4> newPosition = MatrixVectorMul(rotation, point);
+      setPointArray(windowCoords, newPosition, i);    // Write back new position
+    }
+
+}
 
