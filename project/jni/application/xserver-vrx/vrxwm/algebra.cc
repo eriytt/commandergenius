@@ -31,3 +31,13 @@ gvr::Mat4f MatrixInverseRotation(const gvr::Mat4f& matrix)
   return result;
 }
 
+gvr::Mat4f MatrixTranspose(const gvr::Mat4f& matrix)
+{
+  gvr::Mat4f result;
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j)
+      result.m[i][j] = matrix.m[j][i];
+
+  return result;
+}
+

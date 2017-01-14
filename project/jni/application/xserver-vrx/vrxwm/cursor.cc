@@ -4,8 +4,10 @@
 
 #include "common.h"
 #include "gl-utils.h"
+#include "vrx_renderer.h"
 
 unsigned int VRXCursor::texId = 0;
+const float VRXCursor::cursorsize = 0.05;
 const float VRXCursor::distance = 2.5;
 const char *VRXCursor::vertexShader =
   "uniform mat4 u_MVP;\n"
@@ -43,8 +45,8 @@ bool VRXCursor::InitGL()
 	unsigned char *pixel = &texture[(y * texsize + x) * 4];
 	unsigned char invalpha = std::min(255u, (POW2(x - texsize / 2) + POW2(y - texsize /2)) * 4);
 	unsigned char alpha = 255 - invalpha;
-	pixel[0] = 0xff;
-	pixel[1] = 0x0;
+	pixel[0] = 0x0;
+	pixel[1] = 0xff;
 	pixel[2] = 0x0;
 	pixel[3] = alpha;
       }
@@ -58,12 +60,12 @@ bool VRXCursor::InitGL()
 	       0.0f, 0.0f, 1.0f, -distance,
 	       0.0f, 0.0f, 0.0f, 1.0f};
   coords = {
-    -0.02f,  0.02f,  0.0f,
-    -0.02f, -0.02f,  0.0f,
-     0.02f,  0.02f,  0.0f,
-    -0.02f, -0.02f,  0.0f,
-     0.02f, -0.02f,  0.0f,
-     0.02f,  0.02f,  0.0f,
+    -cursorsize,  cursorsize,  0.0f,
+    -cursorsize, -cursorsize,  0.0f,
+     cursorsize,  cursorsize,  0.0f,
+    -cursorsize, -cursorsize,  0.0f,
+     cursorsize, -cursorsize,  0.0f,
+     cursorsize,  cursorsize,  0.0f,
   };
 
   texcoords = {
@@ -101,11 +103,16 @@ bool VRXCursor::InitGL()
   return true;
 }
 
+void VRXCursor::SetCursorMatrix(const gvr::Mat4f &newmat)
+{
+  modelview = newmat;
+}
+
 void VRXCursor::SetCursorPosition(const Vec4f &newpos)
 {
   modelview.m[0][3] = newpos.x();
   modelview.m[1][3] = newpos.y();
-  modelview.m[2][3] = -newpos.z();
+  modelview.m[2][3] = newpos.z();
 }
 
 void VRXCursor::Draw(const gvr::Mat4f &mvp)
@@ -143,4 +150,15 @@ void VRXCursor::Draw(const gvr::Mat4f &mvp)
   CheckGLError("Drawing cursor");
 
   glDisable(GL_BLEND);
+}
+
+bool VRXCursor::IntersectWindow(const VRXWindow *window, const Vec4f &direction, Vec4f &isect)
+{
+  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, -4.5});
+  isect = wplane.intersectLine(direction);
+
+  if ((isect.x() <= 2.0 && isect.x() > -2.0)
+      && (isect.y() <= 2.0 && isect.y() > -2.0))
+    return true;
+  return false;
 }

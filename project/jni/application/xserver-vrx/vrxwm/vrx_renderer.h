@@ -44,6 +44,8 @@ struct VRXWindow
   struct WindowHandle *handle;
   void *buffer;
   gvr::Mat4f modelView;
+  gvr::Mat4f head;
+  gvr::Mat4f headInverse;
   unsigned int texId;
   VrxWindowCoords windowCoords;
   VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
@@ -139,6 +141,8 @@ class VRXRenderer {
    * @return true if the user is looking at the object.
    */
   bool IsLookingAtObject();
+
+  const VRXWindow *cursorWindow(const Vec4f &view_vector, Vec4f &intersection);
 
   std::unique_ptr<gvr::GvrApi> gvr_api_;
   std::unique_ptr<gvr::BufferViewportList> viewport_list_;

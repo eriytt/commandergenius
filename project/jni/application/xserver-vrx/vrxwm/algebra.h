@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "vr/gvr/capi/include/gvr_types.h"
+#include "common.h"
 
 template <typename VT>
 class Vec4
@@ -17,6 +18,7 @@ public:
   Vec4(VT x, VT y) : v({x, y, 0.0, 0.0}) {}
   Vec4(VT x, VT y, VT z) : v({x, y, z, 0.0}) {}
   Vec4(VT x, VT y, VT z, VT g) : v({x, y, z, g}) {}
+  Vec4(const Vec4<VT> &o) : v({o.x(), o.y(), o.z(), o.g()}) {}
 
   VT x() const {return v[0];}
   VT y() const {return v[1];}
@@ -128,18 +130,20 @@ template <typename VT>
 class Plane
 {
 protected:
-  Vec4<VT> normal;
+  Vec4<VT> normal, point;
 
 public:
-  Plane(const Vec4<VT> &normal) : normal(normal) {}
+  Plane(const Vec4<VT> &normal, const Vec4<VT> &point = Vec4<VT>())
+    : normal(normal), point(point) {}
 
   // Assumes direction is normalized
-  Vec4<VT> intersectLine(const Vec4<VT> &direction, const Vec4<VT> &point = Vec4<VT>())
+  Vec4<VT> intersectLine(const Vec4<VT> &direction, const Vec4<VT> &pos = Vec4<VT>())
   {
-    // TODO: check if direction is parallel to the plane
-    VT d = normal.g() + (-point * normal);
-    VT t = d / (direction * normal);
-    return point + (direction * t);
+
+    VT t2 = normal * direction;
+    VT d = point * normal;
+    VT t = -((normal * pos) - d) / t2;
+    return pos + (direction * t);
   }
 };
 
@@ -147,3 +151,4 @@ typedef Plane<float> Planef;
 
 gvr::Mat4f MatrixMul(const gvr::Mat4f& matrix1, const gvr::Mat4f& matrix2);
 gvr::Mat4f MatrixInverseRotation(const gvr::Mat4f& matrix);
+gvr::Mat4f MatrixTranspose(const gvr::Mat4f& matrix);

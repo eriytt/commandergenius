@@ -385,6 +385,28 @@ static inline unsigned int roundUpPow2(unsigned int v)
   return v;
 }
 
+const VRXWindow *VRXRenderer::cursorWindow(const Vec4f &view_vector, Vec4f &intersection)
+{
+  for (auto w: renderWindows)
+    {
+      Vec4f window_relative_view_vector = MatrixVectorMul(w->head, view_vector);
+      if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
+	{
+	  return w;
+	}
+    }
+  return nullptr;
+}
+
+static void logmatrix(const char *name, const gvr::Mat4f &m)
+{
+  LOGI("%s:", name);
+  LOGI("%.2f, %.2f, %.2f, %.2f", m.m[0][0], m.m[0][1], m.m[0][2], m.m[0][3]);
+  LOGI("%.2f, %.2f, %.2f, %.2f", m.m[1][0], m.m[1][1], m.m[1][2], m.m[1][3]);
+  LOGI("%.2f, %.2f, %.2f, %.2f", m.m[2][0], m.m[2][1], m.m[2][2], m.m[2][3]);
+  LOGI("%.2f, %.2f, %.2f, %.2f", m.m[3][0], m.m[3][1], m.m[3][2], m.m[3][3]);
+}
+
 #include <unistd.h>
 #define M_PI_8 (M_PI_4 / 2.0)
 void VRXRenderer::DrawFrame() {
@@ -408,10 +430,6 @@ void VRXRenderer::DrawFrame() {
   gvr::Mat4f right_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE);
   gvr::Mat4f left_eye_view = MatrixMul(left_eye_matrix, head_view_);
   gvr::Mat4f right_eye_view = MatrixMul(right_eye_matrix, head_view_);
-
-  Vec4f mouse_vector = MatrixVectorMul(head_view_, Vec4f{0.0f, 0.0f, 1.0f, 0.0f});
-  Vec4f isect = screenplane.intersectLine(mouse_vector);
-  VRXCursor::SetCursorPosition(isect);
 
   frame.BindBuffer(0);
   glEnable(GL_DEPTH_TEST);
@@ -460,6 +478,30 @@ void VRXRenderer::DrawFrame() {
 	}
     }
   windowMutex.unlock();
+
+
+  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
+  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+  Vec4f isect;
+
+  const VRXWindow *hit = cursorWindow(mouse_vector, isect);
+
+  if (hit)
+    {
+      VRXCursor::SetCursorMatrix(MatrixMul(hit->headInverse, {1.0, 0.0, 0.0, isect.x(),
+	      0.0, 1.0, 0.0, isect.y(),
+	      0.0, 0.0, 1.0, -4.45,
+	      0.0, 0.0, 0.0, 1.0}));
+    }
+  else
+    {
+
+      VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
+	      0.0, 1.0, 0.0, 0.0,
+	      0.0, 0.0, 1.0, -10.0,
+	      0.0, 0.0, 0.0, 1.0}));
+    }
+
 
   CheckGLError("onDrawFrame");
   //usleep(100000);
@@ -747,7 +789,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
 
-  gvr::Mat4f headInverse = MatrixInverseRotation(head_view_);
+  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
   auto vw = new VRXWindow(w, windowCoords);
   float object_distance = 4.5;
   gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,             0.0f,
@@ -756,6 +798,8 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
                       0.0f,   0.0f,    0.0f,             1.0f};
 
   vw->modelView = MatrixMul(headInverse, trans);
+  vw->head = head_view_;
+  vw->headInverse = headInverse;
   windows[w] = vw;
   windowMutex.unlock();
 
