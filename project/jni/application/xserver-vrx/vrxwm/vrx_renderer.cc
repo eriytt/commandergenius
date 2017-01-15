@@ -249,7 +249,10 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
       floor_depth_(20.0f),
       wm(nullptr), screenplane({0.0, 0.0, 1.0, 2.5})
 {
-  VRXSetCallbacks(CreateWindow, DestroyWindow, QueryPointer, this);
+  pointerWindow.window = nullptr;
+  pointerWindow.x = 0;
+  pointerWindow.y = 0;
+  VRXSetCallbacks(CreateWindow, DestroyWindow, QueryPointer, QueryPointerWindow, this);
 }
 
 VRXRenderer::~VRXRenderer() {
@@ -483,25 +486,37 @@ void VRXRenderer::DrawFrame() {
   gvr::Mat4f headInverse = MatrixTranspose(head_view_);
   Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
   Vec4f isect;
-
   const VRXWindow *hit = cursorWindow(mouse_vector, isect);
-
+  bool send_event = false;
   if (hit)
     {
       VRXCursor::SetCursorMatrix(MatrixMul(hit->headInverse, {1.0, 0.0, 0.0, isect.x(),
 	      0.0, 1.0, 0.0, isect.y(),
 	      0.0, 0.0, 1.0, -4.45,
 	      0.0, 0.0, 0.0, 1.0}));
+
+      short int x = 89 + 44.5f * isect.x();
+      short int y = 89 + 44.5f * -isect.y();
+      send_event = hit != pointerWindow.window or x != pointerWindow.x or y != pointerWindow.y;
+      pointerWindow.x = x;
+      pointerWindow.y = y;
+      pointerWindow.window = hit;
     }
   else
     {
-
       VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
 	      0.0, 1.0, 0.0, 0.0,
 	      0.0, 0.0, 1.0, -10.0,
 	      0.0, 0.0, 0.0, 1.0}));
+
+      send_event = pointerWindow.window != nullptr;
+      pointerWindow.window = hit;
+      pointerWindow.x = pointerWindow.y = -WindowManager::DESKTOP_SIZE / 2;
     }
 
+  if (send_event)
+    VRXMouseMotionEvent(pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
+			pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
 
   CheckGLError("onDrawFrame");
   //usleep(100000);
@@ -838,10 +853,10 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
   Vec4f isect;
   if (VRXCursor::IntersectWindow(vw, window_relative_view_vector, isect))
     {
-      int x = 37.5f * isect.x();
-      int y = 25 * -isect.y();
-      r.root_x = 16384 + 75 + x;
-      r.root_y = 16384 + 50 + y;
+      short int x = 37.5f * isect.x();
+      short int y = 25 * -isect.y();
+      r.root_x = WindowManager::DESKTOP_SIZE / 2 + 75 + x;
+      r.root_y = WindowManager::DESKTOP_SIZE / 2 + 50 + y;
       r.win_x = 75 + x;
       r.win_y = 50 + y;
       r.inside = 1;
@@ -850,10 +865,17 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
     {
       r.root_x = 0;
       r.root_y = 0;
-      r.win_x = -16384;
-      r.win_y = -16384;
+      r.win_x = -WindowManager::DESKTOP_SIZE / 2;
+      r.win_y = -WindowManager::DESKTOP_SIZE / 2;
       r.inside = 0;
     }
 
   return r;
+}
+
+struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
+{
+  if (not pointerWindow.window)
+    return nullptr;
+  return pointerWindow.window->handle;
 }

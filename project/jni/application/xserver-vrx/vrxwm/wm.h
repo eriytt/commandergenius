@@ -31,6 +31,8 @@ extern "C" {
 // Implementation of a window manager for an X screen.
 class WindowManager {
  public:
+  static const unsigned short int DESKTOP_SIZE = 8192;
+
   // Creates a WindowManager instance for the X display/screen specified by the
   // argument string, or if unspecified, the DISPLAY environment variable. On
   // failure, returns nullptr.

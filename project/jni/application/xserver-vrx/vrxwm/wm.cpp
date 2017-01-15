@@ -181,8 +181,8 @@ void WindowManager::Frame(Window w) {
   const Window frame = XCreateSimpleWindow(
       display_,
       root_,
-      16384,
-      16384,
+      DESKTOP_SIZE / 2,
+      DESKTOP_SIZE / 2,
       x_window_attrs.width,
       x_window_attrs.height,
       BORDER_WIDTH,

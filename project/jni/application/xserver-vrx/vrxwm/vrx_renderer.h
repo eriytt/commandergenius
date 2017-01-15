@@ -206,6 +206,7 @@ class VRXRenderer {
   void handleCreateWindow(struct WindowHandle *pWin);
   void handleDestroyWindow(struct WindowHandle *pWin);
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
+  struct WindowHandle *handleQueryPointerWindow();
 
   static void CreateWindow(struct WindowHandle *pWin, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin);}
@@ -213,12 +214,22 @@ class VRXRenderer {
   {reinterpret_cast<VRXRenderer*>(instance)->handleDestroyWindow(pWin);}
   static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
   {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointer(pWin);}
+  static struct WindowHandle *QueryPointerWindow(void *instance)
+  {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointerWindow();}
 
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
   std::list<const VRXWindow *> renderWindows;
 
   Planef screenplane;
+
+  struct VRXPointerWindow
+  {
+    const VRXWindow *window;
+    unsigned short int x, y;
+  };
+
+  VRXPointerWindow pointerWindow;
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT
