@@ -859,7 +859,6 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
       r.root_y = WindowManager::DESKTOP_SIZE / 2 + 50 + y;
       r.win_x = 75 + x;
       r.win_y = 50 + y;
-      r.inside = 1;
     }
   else
     {
@@ -867,7 +866,6 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
       r.root_y = 0;
       r.win_x = -WindowManager::DESKTOP_SIZE / 2;
       r.win_y = -WindowManager::DESKTOP_SIZE / 2;
-      r.inside = 0;
     }
 
   return r;
