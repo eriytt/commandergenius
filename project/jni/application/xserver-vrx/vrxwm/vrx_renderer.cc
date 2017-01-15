@@ -249,7 +249,7 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
       floor_depth_(20.0f),
       wm(nullptr), screenplane({0.0, 0.0, 1.0, 2.5})
 {
-  VRXSetCallbacks(CreateWindow, DestroyWindow, this);
+  VRXSetCallbacks(CreateWindow, DestroyWindow, QueryPointer, this);
 }
 
 VRXRenderer::~VRXRenderer() {
@@ -820,4 +820,40 @@ void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
   windows.erase(it);
   LOGI("Destroy window: size after destroy: %d", windows.size());
   windowMutex.unlock();
+}
+
+
+// TODO: This is not really thread safe. We can be sure that window list does not change
+//       under our feet, but any of the matrices used in transforms change, and in particular
+//       between transforms from eye space to world space and back.
+QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
+{
+  QueryPointerReturn r;
+
+  const VRXWindow *vw = windows[w];
+  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
+  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+  Vec4f window_relative_view_vector = MatrixVectorMul(vw->head, mouse_vector);
+
+  Vec4f isect;
+  if (VRXCursor::IntersectWindow(vw, window_relative_view_vector, isect))
+    {
+      int x = 37.5f * isect.x();
+      int y = 25 * -isect.y();
+      r.root_x = 16384 + 75 + x;
+      r.root_y = 16384 + 50 + y;
+      r.win_x = 75 + x;
+      r.win_y = 50 + y;
+      r.inside = 1;
+    }
+  else
+    {
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -16384;
+      r.win_y = -16384;
+      r.inside = 0;
+    }
+
+  return r;
 }

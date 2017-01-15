@@ -205,11 +205,14 @@ class VRXRenderer {
 
   void handleCreateWindow(struct WindowHandle *pWin);
   void handleDestroyWindow(struct WindowHandle *pWin);
+  QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
 
   static void CreateWindow(struct WindowHandle *pWin, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin);}
   static void DestroyWindow(struct WindowHandle *pWin, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->handleDestroyWindow(pWin);}
+  static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
+  {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointer(pWin);}
 
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
