@@ -488,6 +488,10 @@ void VRXRenderer::DrawFrame() {
     }
   windowMutex.unlock();
 
+  for(auto w : renderWindows)
+    if (moveFocusedWindow && isFocused(w))
+      w->updateTransform(head_view_);
+
 
   gvr::Mat4f headInverse = MatrixTranspose(head_view_);
   Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
@@ -613,7 +617,7 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   VRXCursor::Draw(mvp);
 }
 
-void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
+void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
 {
   glUseProgram(windowProgram);
 
@@ -624,7 +628,7 @@ void VRXRenderer::DrawWindow(const VRXWindow *win, const gvr::Mat4f &mvp)
   // Set the ModelView in the shader, used to calculate lighting
   // glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
   //                    MatrixToGLArray(modelview_).data());
-
+  
   // Set the position of the window
   glVertexAttribPointer(wPos_param, kCoordsPerVertex, GL_FLOAT, false, 0,
                         win->windowCoords.data());
@@ -827,8 +831,10 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   vw->head = head_view_;
   vw->headInverse = headInverse;
   windows[w] = vw;
+  focusedWindows.push_front(vw);
   windowMutex.unlock();
 
+  LOGW("New window: %p", w);
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
@@ -838,11 +844,13 @@ void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
   LOGI("Destroy window: size before destroy: %d", windows.size());
   auto it = windows.find(w);
   if (it == windows.end())
-    {
+  {
       windowMutex.unlock();
       LOGE("We don't know anything about this window!");
       return;
-    }
+  }
+  
+  focusedWindows.remove(it->second);
   windows.erase(it);
   LOGI("Destroy window: size after destroy: %d", windows.size());
   windowMutex.unlock();
@@ -892,4 +900,74 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
     return nullptr;
 
   return pointerWindow.window->handle;
+}
+
+void VRXRenderer::focusMRUWindow(uint16_t num)
+{
+  // Take win #num in Most Recently Used list and move to front
+  if (focusedWindows.size() == 0){ return; }
+
+  num = num % focusedWindows.size();
+  
+  auto it = focusedWindows.begin();
+  while(num>0)
+  {
+    it++;
+    --num;
+  }
+  
+  auto tempWinPtr = *it;
+  focusedWindows.erase(it);
+  focusedWindows.push_front(tempWinPtr);
+  LOGI("Window focused: %p", tempWinPtr->handle);
+
+}
+
+
+bool VRXRenderer::isFocused(const VRXWindow * win)
+{
+  return win==focusedWindows.front();
+}
+
+
+KeyMap& VRXRenderer::keyMap()
+{
+  return mKeyMap;
+}
+  
+void VRXRenderer::toggleMoveFocusedWindow()
+{
+  moveFocusedWindow = !moveFocusedWindow;
+  LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
+};
+
+void VRXRenderer::changeWindowSize(float sizeDiff)
+{
+  if (not focusedWindows.size()) return;
+  VRXWindow *w = focusedWindows.front();
+  if (w->scale + sizeDiff <= 0.0) return;
+
+  w->scale += sizeDiff;
+  w->setSize(w->width, w->height);
+}
+
+void VRXRenderer::changeWindowDistance(float distanceDiff)
+{
+  if (not focusedWindows.size()) return;
+  VRXWindow *w = focusedWindows.front();
+  if (w->distance + distanceDiff <= kZNear) return;
+    
+  w->distance += distanceDiff;
+  w->updateTransform(w->head);
+}
+
+void VRXWindow::updateTransform(const gvr::Mat4f &newHead)
+{
+  gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,      0.0f,
+                      0.0f,   1.0,     0.0f,      0.0f,
+                      0.0f,   0.0f,    1.0f, -distance,
+                      0.0f,   0.0f,    0.0f,      1.0f};
+  head = newHead;
+  headInverse = MatrixTranspose(head);
+  modelView = MatrixMul(headInverse, trans);
 }

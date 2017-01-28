@@ -38,3 +38,6 @@
 /project/jni/application/xserver-vrx/vrxwm/m4/
 /project/jni/application/xserver-vrx/vrxwm/missing
 /project/jni/application/xserver-vrx/xserver/
+
+# Kdevelop files
+*.kdev4

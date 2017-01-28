@@ -27,6 +27,8 @@
 #include <map>
 #include <list>
 
+#include <linux/input.h>
+
 extern "C" {
 #include <vrxexport.h>
 }
@@ -53,6 +55,11 @@ struct VRXWindow
   unsigned int texWidth, texHeight;
   VrxWindowCoords windowCoords;
   VrxWindowTexCoords texCoords;
+  float scale = 1.0f;
+  float distance = DEFAULT_DISTANCE;
+
+
+  
   VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
     : handle(w), buffer(nullptr), texId(0), width(0), height(0),
       windowCoords(initialPosition) {}
@@ -61,8 +68,8 @@ struct VRXWindow
   {
     width = w;
     height = h;
-    int ws = w;
-    int hs = h;
+    int ws = scale * w;
+    int hs = scale * h;
     windowCoords = {
       -ws / 2.0f,  hs / 2.0f,  0.0f,
       -ws / 2.0f, -hs / 2.0f,  0.0f,
@@ -91,6 +98,27 @@ struct VRXWindow
   unsigned int getHeight() const {return height;}
   float getHalfWidth() const {return width / 2.0f;}
   float getHalfHeight() const {return height / 2.0f;}
+  void updateTransform(const gvr::Mat4f &head);
+};
+
+class KeyMap
+{
+public:
+  int commandKey = KEY_A;
+  bool isCommandMode = false;
+  void setKey(int code, uint8_t isDown)
+  {
+    if (code < 256) keys[code] = isDown;
+  }
+  
+  uint8_t getKey(int code)
+  {
+    if (code < 256) return keys[code];
+    
+    return 0;
+  }
+private:
+  uint8_t keys[256];
 };
 
 class VRXRenderer {
@@ -133,6 +161,14 @@ class VRXRenderer {
    */
   void OnResume();
 
+  KeyMap& keyMap();
+  
+  void focusMRUWindow(uint16_t num);
+  
+  void toggleMoveFocusedWindow();
+  
+  void changeWindowSize(float sizeDiff);
+  void changeWindowDistance(float distanceDiff);
  private:
 
   /*
@@ -156,7 +192,7 @@ class VRXRenderer {
    */
   void DrawCube();
 
-  void DrawWindow(const VRXWindow *win, const gvr::Mat4f &perspective);
+  void DrawWindow(VRXWindow *win, const gvr::Mat4f &perspective);
 
   /**
    * Draw the floor.
@@ -182,6 +218,9 @@ class VRXRenderer {
    * @return true if the user is looking at the object.
    */
   bool IsLookingAtObject();
+  
+  bool isFocused(const VRXWindow * win);
+  
 
   const VRXWindow *cursorWindow(const Vec4f &view_vector, Vec4f &intersection);
 
@@ -260,7 +299,8 @@ class VRXRenderer {
 
   std::mutex windowMutex;
   std::map<struct WindowHandle*, VRXWindow *> windows;
-  std::list<const VRXWindow *> renderWindows;
+  std::list<VRXWindow *> renderWindows;
+  std::list<VRXWindow *> focusedWindows;
 
   struct VRXPointerWindow
   {
@@ -269,6 +309,11 @@ class VRXRenderer {
   };
 
   VRXPointerWindow pointerWindow;
+
+  KeyMap mKeyMap;
+  
+  bool moveFocusedWindow = false;
+
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT

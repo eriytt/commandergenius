@@ -29,6 +29,10 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
+
+import java.net.*;
+import java.util.*;  
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -151,6 +155,9 @@ public class VRXActivity extends Activity {
     super.onResume();
     nativeOnResume(nativeVRXRenderer);
     gvrLayout.onResume();
+    String ipInfo = new String("IP address: ");
+    ipInfo += getIPAddress(true);
+    Toast.makeText(this, ipInfo, Toast.LENGTH_LONG).show();
   }
 
   @Override
@@ -176,7 +183,7 @@ public class VRXActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    //Log.i("VRX", "Got key event: " + event);
+    Log.i("VRX", "Got key event: " + event);
 
     int action = event.getAction();
     if (action == KeyEvent.ACTION_MULTIPLE)
@@ -212,6 +219,13 @@ public class VRXActivity extends Activity {
     // if (event.getKeyCode() == KeyEvent.KEYCODE_P)
     //   xsrv.nativeMouseMotionEvent(100, 100);
 
+    int keyTrapped = nativeWMEvent(nativeVRXRenderer, event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    if (keyTrapped==1)
+    {
+      Log.i("VRX", "Key Trapped");
+      return true;
+    }
+    
     xsrv.nativeKeyEvent(event.getScanCode(), action == KeyEvent.ACTION_DOWN);
     return true;
   }
@@ -234,6 +248,31 @@ public class VRXActivity extends Activity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
   }
 
+  public static String getIPAddress(boolean useIPv4) {
+    try {
+      List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+      for (NetworkInterface intf : interfaces) {
+        List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+        for (InetAddress addr : addrs) {
+          if (!addr.isLoopbackAddress()) {
+            String sAddr = addr.getHostAddress();
+            boolean isIPv4 = sAddr.indexOf(':')<0;
+
+            if (useIPv4) {
+              if (isIPv4) 
+                return sAddr;
+            } else {
+              if (!isIPv4) {
+                int delim = sAddr.indexOf('%'); // drop ip6 zone suffix
+                  return delim<0 ? sAddr.toUpperCase() : sAddr.substring(0, delim).toUpperCase();
+                }
+            }
+          }
+        }
+      }
+    } catch (Exception ex) { } // for now eat exceptions
+    return "";
+  }
   private native long nativeCreateRenderer(ClassLoader appClassLoader,
 					   Context context,
 					   long nativeGvrContext);
@@ -243,4 +282,5 @@ public class VRXActivity extends Activity {
   private native void nativeOnTriggerEvent(long nativeVRXRenderer);
   private native void nativeOnPause(long nativeVRXRenderer);
   private native void nativeOnResume(long nativeVRXRenderer);
+  private native int nativeWMEvent(long nativeVRXRenderer, int scancode, boolean down);
 }
