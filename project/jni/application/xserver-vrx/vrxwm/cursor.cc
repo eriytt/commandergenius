@@ -7,8 +7,8 @@
 #include "vrx_renderer.h"
 
 unsigned int VRXCursor::texId = 0;
-const float VRXCursor::cursorsize = 0.05;
-const float VRXCursor::distance = 2.5;
+const float VRXCursor::cursorsize = 5.0;
+const float VRXCursor::distance = 500.0;
 const char *VRXCursor::vertexShader =
   "uniform mat4 u_MVP;\n"
   "attribute vec2 a_Texcoord;\n"
@@ -154,11 +154,11 @@ void VRXCursor::Draw(const gvr::Mat4f &mvp)
 
 bool VRXCursor::IntersectWindow(const VRXWindow *window, const Vec4f &direction, Vec4f &isect)
 {
-  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, -4.5});
+  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, static_cast<float>(-VRXWindow::DEFAULT_DISTANCE)});
   isect = wplane.intersectLine(direction);
 
-  if ((isect.x() <= 2.0 && isect.x() > -2.0)
-      && (isect.y() <= 2.0 && isect.y() > -2.0))
+  if ((isect.x() <= window->getHalfWidth() && isect.x() > -window->getHalfWidth())
+      && (isect.y() <= window->getHalfHeight() && isect.y() > -window->getHalfHeight()))
     return true;
   return false;
 }
