@@ -171,7 +171,7 @@ void WindowManager::Frame(Window w) {
   const unsigned int BORDER_WIDTH = 10;
   const unsigned long BORDER_COLOR = 0xff0000;
   const unsigned long BG_COLOR = 0x0000ff;
-
+  LOGI("Framing window %d", w);
   CHECK(!clients_.count(w));
 
   // 1. Retrieve attributes of window to frame.
@@ -321,8 +321,10 @@ void WindowManager::OnConfigureNotify(const XConfigureEvent& e)
 
 void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
   LOGI("OnMapRequest");
-  // 1. Frame or re-frame window.
-  Frame(e.window);
+  // 1. Frame or re-frame window (if it has not been framed already,
+  //    multiple XMapWindow is allowed but only the first one has any effect).
+  if (not clients_.count(e.window))
+    Frame(e.window);
   // 2. Actually map window.
   XMapWindow(display_, e.window);
 }
