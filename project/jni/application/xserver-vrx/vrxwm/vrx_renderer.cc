@@ -25,17 +25,17 @@
 #include "gl-utils.h"
 
 namespace {
-static const int kTextureFormat = GL_RGB;
-static const int kTextureType = GL_UNSIGNED_BYTE;
+  static const int kTextureFormat = GL_RGB;
+  static const int kTextureType = GL_UNSIGNED_BYTE;
 
-static const float kZNear = 100.0f;
-static const float kZFar = 100000.0f;
+  static const float kZNear = 100.0f;
+  static const float kZFar = 100000.0f;
 
-static const int kCoordsPerVertex = 3;
+  static const int kCoordsPerVertex = 3;
 
-static const uint64_t kPredictionTimeWithoutVsyncNanos = 50000000;
+  static const uint64_t kPredictionTimeWithoutVsyncNanos = 50000000;
 
-static const char* kGridFragmentShader =
+  static const char* kGridFragmentShader =
     "precision mediump float;\n"
     "varying vec4 v_Color;\n"
     "varying vec3 v_Grid;\n"
@@ -52,177 +52,177 @@ static const char* kGridFragmentShader =
     "    }\n"
     "}\n";
 
-static const char* kLightVertexShader =
-  "uniform mat4 u_Model;\n"
-  "uniform mat4 u_MVP;\n"
-  "uniform mat4 u_MVMatrix;\n"
-  "uniform vec3 u_LightPos;\n"
-  "attribute vec4 a_Position;\n"
-  "\n"
-  "attribute vec4 a_Color;\n"
-  "attribute vec2 a_Texcoord;\n"
-  "attribute vec3 a_Normal;\n"
-  "\n"
-  "varying vec4 v_Color;\n"
-  "varying vec3 v_Grid;\n"
-  "\n"
-  "varying vec2 v_Texcoord;\n"
-  "\n"
-  "void main() {\n"
-  "  v_Texcoord = a_Texcoord;\n"
-  "  v_Grid = vec3(u_Model * a_Position);\n"
-  "  vec3 modelViewVertex = vec3(u_MVMatrix * a_Position);\n"
-  "  vec3 modelViewNormal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));\n"
-  "  float distance = length(u_LightPos - modelViewVertex);\n"
-  "  vec3 lightVector = normalize(u_LightPos - modelViewVertex);\n"
-  "  float diffuse = max(dot(modelViewNormal, lightVector), 0.5);\n"
-  "  diffuse = diffuse * (1.0 / (1.0 + (0.00000015 * distance * distance)));\n"
-  "  v_Color = a_Color * diffuse;\n"
-  "  gl_Position = u_MVP * a_Position;\n"
-  "}\n";
+  static const char* kLightVertexShader =
+    "uniform mat4 u_Model;\n"
+    "uniform mat4 u_MVP;\n"
+    "uniform mat4 u_MVMatrix;\n"
+    "uniform vec3 u_LightPos;\n"
+    "attribute vec4 a_Position;\n"
+    "\n"
+    "attribute vec4 a_Color;\n"
+    "attribute vec2 a_Texcoord;\n"
+    "attribute vec3 a_Normal;\n"
+    "\n"
+    "varying vec4 v_Color;\n"
+    "varying vec3 v_Grid;\n"
+    "\n"
+    "varying vec2 v_Texcoord;\n"
+    "\n"
+    "void main() {\n"
+    "  v_Texcoord = a_Texcoord;\n"
+    "  v_Grid = vec3(u_Model * a_Position);\n"
+    "  vec3 modelViewVertex = vec3(u_MVMatrix * a_Position);\n"
+    "  vec3 modelViewNormal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));\n"
+    "  float distance = length(u_LightPos - modelViewVertex);\n"
+    "  vec3 lightVector = normalize(u_LightPos - modelViewVertex);\n"
+    "  float diffuse = max(dot(modelViewNormal, lightVector), 0.5);\n"
+    "  diffuse = diffuse * (1.0 / (1.0 + (0.00000015 * distance * distance)));\n"
+    "  v_Color = a_Color * diffuse;\n"
+    "  gl_Position = u_MVP * a_Position;\n"
+    "}\n";
 
-static const char *WindowVertexShader =
-  "uniform mat4 u_MVP;\n"
-  "attribute vec2 a_Texcoord;\n"
-  "attribute vec4 a_Position;\n"
-  "varying vec2 v_Texcoord;\n"
-  "void main() {\n"
-  "  v_Texcoord = a_Texcoord;\n"
-  "  gl_Position = u_MVP * a_Position;\n"
-  "}\n";
+  static const char *WindowVertexShader =
+    "uniform mat4 u_MVP;\n"
+    "attribute vec2 a_Texcoord;\n"
+    "attribute vec4 a_Position;\n"
+    "varying vec2 v_Texcoord;\n"
+    "void main() {\n"
+    "  v_Texcoord = a_Texcoord;\n"
+    "  gl_Position = u_MVP * a_Position;\n"
+    "}\n";
 
-static const char *WindowFragmentShader =
-  "precision mediump float;\n"
-  "uniform sampler2D u_Texture;\n"
-  "varying vec2 v_Texcoord;\n"
-  "void main() {\n"
-  "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
-  "}\n";
+  static const char *WindowFragmentShader =
+    "precision mediump float;\n"
+    "uniform sampler2D u_Texture;\n"
+    "varying vec2 v_Texcoord;\n"
+    "void main() {\n"
+    "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
+    "}\n";
 
   // static const char* kPassthroughFragmentShader =
-//     "precision mediump float;\n"
-//     "\n"
-//     "varying vec4 v_Color;\n"
-//     "\n"
-//     "void main() {\n"
-//     "  gl_FragColor = v_Color;\n"
-//     "}\n";
+  //     "precision mediump float;\n"
+  //     "\n"
+  //     "varying vec4 v_Color;\n"
+  //     "\n"
+  //     "void main() {\n"
+  //     "  gl_FragColor = v_Color;\n"
+  //     "}\n";
 
-static const char* kPassthroughFragmentShader =
-  "precision mediump float;\n"
-  "uniform sampler2D u_Texture;\n"
-  "varying vec2 v_Texcoord;\n"
-  "\n"
-  "varying vec4 v_Color;\n"
-  "\n"
-  "void main() {\n"
-  //"  gl_FragColor = v_Color;\n"
-  //"  gl_FragColor = v_Color * texture2D(u_Texture, v_Texcoord);\n"
-  "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
-  "}\n";
+  static const char* kPassthroughFragmentShader =
+    "precision mediump float;\n"
+    "uniform sampler2D u_Texture;\n"
+    "varying vec2 v_Texcoord;\n"
+    "\n"
+    "varying vec4 v_Color;\n"
+    "\n"
+    "void main() {\n"
+    //"  gl_FragColor = v_Color;\n"
+    //"  gl_FragColor = v_Color * texture2D(u_Texture, v_Texcoord);\n"
+    "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
+    "}\n";
 
-static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
-                                            const std::array<float, 4>& vec) {
-  std::array<float, 4> result;
-  for (int i = 0; i < 4; ++i) {
-    result[i] = 0;
-    for (int k = 0; k < 4; ++k) {
-      result[i] += matrix.m[i][k] * vec[k];
+  static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
+					      const std::array<float, 4>& vec) {
+    std::array<float, 4> result;
+    for (int i = 0; i < 4; ++i) {
+      result[i] = 0;
+      for (int k = 0; k < 4; ++k) {
+	result[i] += matrix.m[i][k] * vec[k];
+      }
     }
+    return result;
   }
-  return result;
-}
 
-static Vec4f MatrixVectorMul(const gvr::Mat4f& matrix,
-			     const Vec4f& vec) {
-  std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
-  return Vec4f(r[0], r[1], r[2], r[3]);
-}
+  static Vec4f MatrixVectorMul(const gvr::Mat4f& matrix,
+			       const Vec4f& vec) {
+    std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
+    return Vec4f(r[0], r[1], r[2], r[3]);
+  }
 
-static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
-                                            float z_far) {
-  gvr::Mat4f result;
-  const float x_left = -std::tan(fov.left * M_PI / 180.0f) * z_near;
-  const float x_right = std::tan(fov.right * M_PI / 180.0f) * z_near;
-  const float y_bottom = -std::tan(fov.bottom * M_PI / 180.0f) * z_near;
-  const float y_top = std::tan(fov.top * M_PI / 180.0f) * z_near;
-  const float zero = 0.0f;
+  static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
+					      float z_far) {
+    gvr::Mat4f result;
+    const float x_left = -std::tan(fov.left * M_PI / 180.0f) * z_near;
+    const float x_right = std::tan(fov.right * M_PI / 180.0f) * z_near;
+    const float y_bottom = -std::tan(fov.bottom * M_PI / 180.0f) * z_near;
+    const float y_top = std::tan(fov.top * M_PI / 180.0f) * z_near;
+    const float zero = 0.0f;
 
-  assert(x_left < x_right && y_bottom < y_top && z_near < z_far &&
-         z_near > zero && z_far > zero);
-  const float X = (2 * z_near) / (x_right - x_left);
-  const float Y = (2 * z_near) / (y_top - y_bottom);
-  const float A = (x_right + x_left) / (x_right - x_left);
-  const float B = (y_top + y_bottom) / (y_top - y_bottom);
-  const float C = (z_near + z_far) / (z_near - z_far);
-  const float D = (2 * z_near * z_far) / (z_near - z_far);
+    assert(x_left < x_right && y_bottom < y_top && z_near < z_far &&
+	   z_near > zero && z_far > zero);
+    const float X = (2 * z_near) / (x_right - x_left);
+    const float Y = (2 * z_near) / (y_top - y_bottom);
+    const float A = (x_right + x_left) / (x_right - x_left);
+    const float B = (y_top + y_bottom) / (y_top - y_bottom);
+    const float C = (z_near + z_far) / (z_near - z_far);
+    const float D = (2 * z_near * z_far) / (z_near - z_far);
 
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      result.m[i][j] = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+      for (int j = 0; j < 4; ++j) {
+	result.m[i][j] = 0.0f;
+      }
     }
+    result.m[0][0] = X;
+    result.m[0][2] = A;
+    result.m[1][1] = Y;
+    result.m[1][2] = B;
+    result.m[2][2] = C;
+    result.m[2][3] = D;
+    result.m[3][2] = -1;
+
+    return result;
   }
-  result.m[0][0] = X;
-  result.m[0][2] = A;
-  result.m[1][1] = Y;
-  result.m[1][2] = B;
-  result.m[2][2] = C;
-  result.m[2][3] = D;
-  result.m[3][2] = -1;
 
-  return result;
-}
+  static gvr::Rectf ModulateRect(const gvr::Rectf& rect, float width,
+				 float height) {
+    gvr::Rectf result = {rect.left * width, rect.right * width,
+			 rect.bottom * height, rect.top * height};
+    return result;
+  }
 
-static gvr::Rectf ModulateRect(const gvr::Rectf& rect, float width,
-                               float height) {
-  gvr::Rectf result = {rect.left * width, rect.right * width,
-                       rect.bottom * height, rect.top * height};
-  return result;
-}
-
-static gvr::Recti CalculatePixelSpaceRect(const gvr::Sizei& texture_size,
-                                          const gvr::Rectf& texture_rect) {
-  float width = static_cast<float>(texture_size.width);
-  float height = static_cast<float>(texture_size.height);
-  gvr::Rectf rect = ModulateRect(texture_rect, width, height);
-  gvr::Recti result = {
+  static gvr::Recti CalculatePixelSpaceRect(const gvr::Sizei& texture_size,
+					    const gvr::Rectf& texture_rect) {
+    float width = static_cast<float>(texture_size.width);
+    float height = static_cast<float>(texture_size.height);
+    gvr::Rectf rect = ModulateRect(texture_rect, width, height);
+    gvr::Recti result = {
       static_cast<int>(rect.left), static_cast<int>(rect.right),
       static_cast<int>(rect.bottom), static_cast<int>(rect.top)};
-  return result;
-}
+    return result;
+  }
 
-// Generate a random floating point number between 0 and 1.
-static float RandomUniformFloat() {
-  static std::random_device random_device;
-  static std::mt19937 random_generator(random_device());
-  static std::uniform_real_distribution<float> random_distribution(0, 1);
-  return random_distribution(random_generator);
-}
+  // Generate a random floating point number between 0 and 1.
+  static float RandomUniformFloat() {
+    static std::random_device random_device;
+    static std::mt19937 random_generator(random_device());
+    static std::uniform_real_distribution<float> random_distribution(0, 1);
+    return random_distribution(random_generator);
+  }
 
-static gvr::Sizei HalfPixelCount(const gvr::Sizei& in) {
-  // Scale each dimension by sqrt(2)/2 ~= 7/10ths.
-  gvr::Sizei out;
-  out.width = (7 * in.width) / 10;
-  out.height = (7 * in.height) / 10;
-  return out;
-}
+  static gvr::Sizei HalfPixelCount(const gvr::Sizei& in) {
+    // Scale each dimension by sqrt(2)/2 ~= 7/10ths.
+    gvr::Sizei out;
+    out.width = (7 * in.width) / 10;
+    out.height = (7 * in.height) / 10;
+    return out;
+  }
 
 }  // namespace
 
 VRXRenderer::VRXRenderer(gvr_context* gvr_context)
-    : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
-      scratch_viewport_(gvr_api_->CreateBufferViewport()),
-      floor_vertices_(nullptr),
-      floor_colors_(nullptr),
-      floor_normals_(nullptr),
-      cube_vertices_(nullptr),
-      cube_colors_(nullptr),
-      cube_found_colors_(nullptr),
-      cube_normals_(nullptr),
-      light_pos_world_space_({0.0f, 200.0f, 0.0f, 1.0f}),
-      object_distance_(3.5f),
-      floor_depth_(1024.0f),
-      wm(nullptr)
+  : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
+    scratch_viewport_(gvr_api_->CreateBufferViewport()),
+    floor_vertices_(nullptr),
+    floor_colors_(nullptr),
+    floor_normals_(nullptr),
+    cube_vertices_(nullptr),
+    cube_colors_(nullptr),
+    cube_found_colors_(nullptr),
+    cube_normals_(nullptr),
+    light_pos_world_space_({0.0f, 200.0f, 0.0f, 1.0f}),
+    object_distance_(3.5f),
+    floor_depth_(1024.0f),
+    wm(nullptr)
 {
   pointerWindow.window = nullptr;
   pointerWindow.x = 0;
@@ -270,7 +270,7 @@ void VRXRenderer::InitializeGl() {
   cube_model_param_ = glGetUniformLocation(cube_program_, "u_Model");
   cube_modelview_param_ = glGetUniformLocation(cube_program_, "u_MVMatrix");
   cube_modelview_projection_param_ =
-      glGetUniformLocation(cube_program_, "u_MVP");
+    glGetUniformLocation(cube_program_, "u_MVP");
   cube_light_pos_param_ = glGetUniformLocation(cube_program_, "u_LightPos");
 
   CheckGLError("Cube program params");
@@ -290,7 +290,7 @@ void VRXRenderer::InitializeGl() {
   floor_model_param_ = glGetUniformLocation(floor_program_, "u_Model");
   floor_modelview_param_ = glGetUniformLocation(floor_program_, "u_MVMatrix");
   floor_modelview_projection_param_ =
-      glGetUniformLocation(floor_program_, "u_MVP");
+    glGetUniformLocation(floor_program_, "u_MVP");
   floor_light_pos_param_ = glGetUniformLocation(floor_program_, "u_LightPos");
 
   CheckGLError("Floor program params");
@@ -335,7 +335,7 @@ void VRXRenderer::InitializeGl() {
   swapchain_.reset(new gvr::SwapChain(gvr_api_->CreateSwapChain(specs)));
 
   viewport_list_.reset(new gvr::BufferViewportList(
-      gvr_api_->CreateEmptyBufferViewportList()));
+						   gvr_api_->CreateEmptyBufferViewportList()));
 
   if (not VRXCursor::InitGL())
     LOGE("Failed to initialize cursor");
@@ -398,7 +398,7 @@ void VRXRenderer::DrawFrame() {
   // A client app does its rendering here.
   gvr::ClockTimePoint target_time = gvr::GvrApi::GetTimePointNow();
   target_time.monotonic_system_time_nanos +=
-      kPredictionTimeWithoutVsyncNanos;
+    kPredictionTimeWithoutVsyncNanos;
 
 
   head_view_ = gvr_api_->GetHeadSpaceFromStartSpaceRotation(target_time);
@@ -515,7 +515,7 @@ void VRXRenderer::PrepareFramebuffer() {
   // Because we are using 2X MSAA, we can render to half as many pixels and
   // achieve similar quality.
   gvr::Sizei recommended_size =
-      HalfPixelCount(gvr_api_->GetMaximumEffectiveRenderTargetSize());
+    HalfPixelCount(gvr_api_->GetMaximumEffectiveRenderTargetSize());
   if (render_size_.width != recommended_size.width ||
       render_size_.height != recommended_size.height) {
     // We need to resize the framebuffer.
@@ -553,7 +553,7 @@ void VRXRenderer::OnResume() {
  * @param eye The eye to render. Includes all required transformations.
  */
 void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-                                   const gvr::BufferViewport& params) {
+			  const gvr::BufferViewport& params) {
   const gvr::Recti pixel_rect =
     CalculatePixelSpaceRect(render_size_, params.GetSourceUv());
 
@@ -685,7 +685,7 @@ void VRXRenderer::DrawCube() {
 
   if( cube_color_param_ != -1 ){
     glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-                        IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+			  IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
     glEnableVertexAttribArray(cube_color_param_);
   }
 
@@ -711,7 +711,7 @@ void VRXRenderer::DrawFloor() {
   glVertexAttribPointer(floor_normal_param_, 3, GL_FLOAT, false, 0,
                         floor_normals_);
   glVertexAttribPointer(
-      floor_color_param_, 4, GL_FLOAT, false, 0, floor_colors_);
+			floor_color_param_, 4, GL_FLOAT, false, 0, floor_colors_);
 
   glEnableVertexAttribArray(floor_position_param_);
   glEnableVertexAttribArray(floor_normal_param_);
@@ -727,7 +727,7 @@ void VRXRenderer::HideObject() {
   static const float kMinModelDistance = 3.0f;
 
   std::array<float, 4> cube_position = {
-      model_cube_.m[0][3], model_cube_.m[1][3], model_cube_.m[2][3], 1.f};
+    model_cube_.m[0][3], model_cube_.m[1][3], model_cube_.m[2][3], 1.f};
 
   // First rotate in XZ plane, between pi/2 and 3pi/2 radians away, apply this
   // to model_cube_ to keep the front face of the cube towards the user.
@@ -742,8 +742,8 @@ void VRXRenderer::HideObject() {
   // Pick a new distance for the cube, and apply that scale to the position.
   float old_object_distance = object_distance_;
   object_distance_ =
-      RandomUniformFloat() * (kMaxModelDistance - kMinModelDistance) +
-      kMinModelDistance;
+    RandomUniformFloat() * (kMaxModelDistance - kMinModelDistance) +
+    kMinModelDistance;
   float scale = object_distance_ / old_object_distance;
   cube_position[0] *= scale;
   cube_position[1] *= scale;
@@ -819,11 +819,11 @@ void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
   LOGI("Destroy window: size before destroy: %d", windows.size());
   auto it = windows.find(w);
   if (it == windows.end())
-  {
+    {
       windowMutex.unlock();
       LOGE("We don't know anything about this window!");
       return;
-  }
+    }
   
   focusedWindows.remove(it->second);
   windows.erase(it);
@@ -886,10 +886,10 @@ void VRXRenderer::focusMRUWindow(uint16_t num)
   
   auto it = focusedWindows.begin();
   while(num>0)
-  {
-    it++;
-    --num;
-  }
+    {
+      it++;
+      --num;
+    }
   
   auto tempWinPtr = *it;
   focusedWindows.erase(it);
