@@ -792,19 +792,9 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   }
 
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
-
-  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
   auto vw = new VRXWindow(w, windowCoords);
-  vw->setSize(4, 4);
-  float object_distance = static_cast<float>(VRXWindow::DEFAULT_DISTANCE);
-  gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,             0.0f,
-                      0.0f,   1.0,     0.0f,             0.0f,
-                      0.0f,   0.0f,    1.0f, -object_distance,
-                      0.0f,   0.0f,    0.0f,             1.0f};
+  vw->updateTransform(head_view_);
 
-  vw->modelView = MatrixMul(headInverse, trans);
-  vw->head = head_view_;
-  vw->headInverse = headInverse;
   windows[w] = vw;
   focusedWindows.push_front(vw);
   windowMutex.unlock();
