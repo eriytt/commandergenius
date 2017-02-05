@@ -122,25 +122,25 @@ namespace {
     "}\n";
 
   static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
-					      const std::array<float, 4>& vec) {
+                                              const std::array<float, 4>& vec) {
     std::array<float, 4> result;
     for (int i = 0; i < 4; ++i) {
       result[i] = 0;
       for (int k = 0; k < 4; ++k) {
-	result[i] += matrix.m[i][k] * vec[k];
+        result[i] += matrix.m[i][k] * vec[k];
       }
     }
     return result;
   }
 
   static Vec4f MatrixVectorMul(const gvr::Mat4f& matrix,
-			       const Vec4f& vec) {
+                               const Vec4f& vec) {
     std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
     return Vec4f(r[0], r[1], r[2], r[3]);
   }
 
   static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
-					      float z_far) {
+                                              float z_far) {
     gvr::Mat4f result;
     const float x_left = -std::tan(fov.left * M_PI / 180.0f) * z_near;
     const float x_right = std::tan(fov.right * M_PI / 180.0f) * z_near;
@@ -149,7 +149,7 @@ namespace {
     const float zero = 0.0f;
 
     assert(x_left < x_right && y_bottom < y_top && z_near < z_far &&
-	   z_near > zero && z_far > zero);
+           z_near > zero && z_far > zero);
     const float X = (2 * z_near) / (x_right - x_left);
     const float Y = (2 * z_near) / (y_top - y_bottom);
     const float A = (x_right + x_left) / (x_right - x_left);
@@ -159,7 +159,7 @@ namespace {
 
     for (int i = 0; i < 4; ++i) {
       for (int j = 0; j < 4; ++j) {
-	result.m[i][j] = 0.0f;
+        result.m[i][j] = 0.0f;
       }
     }
     result.m[0][0] = X;
@@ -174,14 +174,14 @@ namespace {
   }
 
   static gvr::Rectf ModulateRect(const gvr::Rectf& rect, float width,
-				 float height) {
+                                 float height) {
     gvr::Rectf result = {rect.left * width, rect.right * width,
-			 rect.bottom * height, rect.top * height};
+                         rect.bottom * height, rect.top * height};
     return result;
   }
 
   static gvr::Recti CalculatePixelSpaceRect(const gvr::Sizei& texture_size,
-					    const gvr::Rectf& texture_rect) {
+                                            const gvr::Rectf& texture_rect) {
     float width = static_cast<float>(texture_size.width);
     float height = static_cast<float>(texture_size.height);
     gvr::Rectf rect = ModulateRect(texture_rect, width, height);
@@ -335,7 +335,7 @@ void VRXRenderer::InitializeGl() {
   swapchain_.reset(new gvr::SwapChain(gvr_api_->CreateSwapChain(specs)));
 
   viewport_list_.reset(new gvr::BufferViewportList(
-						   gvr_api_->CreateEmptyBufferViewportList()));
+                                                   gvr_api_->CreateEmptyBufferViewportList()));
 
   if (not VRXCursor::InitGL())
     LOGE("Failed to initialize cursor");
@@ -369,9 +369,9 @@ const VRXWindow *VRXRenderer::cursorWindow(const Vec4f &view_vector, Vec4f &inte
     {
       Vec4f window_relative_view_vector = MatrixVectorMul(w->head, view_vector);
       if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
-	{
-	  return w;
-	}
+        {
+          return w;
+        }
     }
   return nullptr;
 }
@@ -427,39 +427,39 @@ void VRXRenderer::DrawFrame() {
       unsigned int width, height, mapped;
       void *fb = VRXGetWindowBuffer(w->handle, &width, &height, &mapped);
       if (mapped)
-  	{
-  	  if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
-  	    {
-  	      LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)",
-  		   w->handle, w->buffer, fb, width, height);
+        {
+          if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
+            {
+              LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)",
+                   w->handle, w->buffer, fb, width, height);
 
-  	      // TODO: free texture if there was one already
-  	      if (w->buffer == nullptr)
-		{
-		  w->texWidth = roundUpPow2(width);
-		  w->texHeight = roundUpPow2(height);
-		  w->texId = CreateTexture(w->texWidth, w->texHeight);
-		}
+              // TODO: free texture if there was one already
+              if (w->buffer == nullptr)
+                {
+                  w->texWidth = roundUpPow2(width);
+                  w->texHeight = roundUpPow2(height);
+                  w->texId = CreateTexture(w->texWidth, w->texHeight);
+                }
 
-  	      w->buffer = fb;
-  	      w->setSize(width, height);
-	      w->updateTexCoords();
-  	    }
+              w->buffer = fb;
+              w->setSize(width, height);
+              w->updateTexCoords();
+            }
 
-  	  if (w->buffer != nullptr)
-  	    {
-  	      glBindTexture(GL_TEXTURE_2D, w->texId);
-  	      glTexSubImage2D(GL_TEXTURE_2D, 0,
-  			      0, 0,
-  			      width, height,
-  			      GL_RGBA, GL_UNSIGNED_BYTE,
-  			      w->buffer);
-  	      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  	      // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  	      //glBindTexture(GL_TEXTURE_2D, 0);
-  	      renderWindows.push_back(w);
-  	    }
-  	}
+          if (w->buffer != nullptr)
+            {
+              glBindTexture(GL_TEXTURE_2D, w->texId);
+              glTexSubImage2D(GL_TEXTURE_2D, 0,
+                              0, 0,
+                              width, height,
+                              GL_RGBA, GL_UNSIGNED_BYTE,
+                              w->buffer);
+              // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+              // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+              //glBindTexture(GL_TEXTURE_2D, 0);
+              renderWindows.push_back(w);
+            }
+        }
     }
   windowMutex.unlock();
 
@@ -476,9 +476,9 @@ void VRXRenderer::DrawFrame() {
   if (hit)
     {
       VRXCursor::SetCursorMatrix(MatrixMul(hit->headInverse, {1.0, 0.0, 0.0, isect.x(),
-  	      0.0, 1.0, 0.0, isect.y(),
-  	      0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE + 10.0,
-  	      0.0, 0.0, 0.0, 1.0}));
+              0.0, 1.0, 0.0, isect.y(),
+              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE + 10.0,
+              0.0, 0.0, 0.0, 1.0}));
 
       short int x = hit->getHalfWidth() + isect.x();
       short int y = hit->getHalfHeight() - isect.y();
@@ -490,9 +490,9 @@ void VRXRenderer::DrawFrame() {
   else
     {
       VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
-  	      0.0, 1.0, 0.0, 0.0,
-  	      0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE * 1.5f,
-  	      0.0, 0.0, 0.0, 1.0}));
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE * 1.5f,
+              0.0, 0.0, 0.0, 1.0}));
 
       send_event = pointerWindow.window != nullptr;
       pointerWindow.window = hit;
@@ -502,10 +502,10 @@ void VRXRenderer::DrawFrame() {
   if (send_event)
     {
       LOGI("Send motion event {%d, %d}",
-	   pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
-	   pointerWindow.y + WindowManager::DESKTOP_SIZE / 2);
+           pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
+           pointerWindow.y + WindowManager::DESKTOP_SIZE / 2);
       VRXMouseMotionEvent(pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
-			  pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
+                          pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
     }
   CheckGLError("onDrawFrame");
   //usleep(100000);
@@ -553,7 +553,7 @@ void VRXRenderer::OnResume() {
  * @param eye The eye to render. Includes all required transformations.
  */
 void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-			  const gvr::BufferViewport& params) {
+                          const gvr::BufferViewport& params) {
   const gvr::Recti pixel_rect =
     CalculatePixelSpaceRect(render_size_, params.GetSourceUv());
 
@@ -613,7 +613,7 @@ void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
 
   // Set texture
   glVertexAttribPointer(wTex_param, 2, GL_FLOAT, false, 0,
-			win->texCoords.data());
+                        win->texCoords.data());
   glEnableVertexAttribArray(wTex_param);
   glActiveTexture(GL_TEXTURE0);
 
@@ -685,7 +685,7 @@ void VRXRenderer::DrawCube() {
 
   if( cube_color_param_ != -1 ){
     glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-			  IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
+                          IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
     glEnableVertexAttribArray(cube_color_param_);
   }
 
@@ -711,7 +711,7 @@ void VRXRenderer::DrawFloor() {
   glVertexAttribPointer(floor_normal_param_, 3, GL_FLOAT, false, 0,
                         floor_normals_);
   glVertexAttribPointer(
-			floor_color_param_, 4, GL_FLOAT, false, 0, floor_colors_);
+                        floor_color_param_, 4, GL_FLOAT, false, 0, floor_colors_);
 
   glEnableVertexAttribArray(floor_position_param_);
   glEnableVertexAttribArray(floor_normal_param_);
@@ -859,8 +859,8 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
     return nullptr;
 
   if (std::find_if(windows.begin(), windows.end(),
-		   [&](decltype(*windows.end()) p)
-		   {return p.second == pointerWindow.window;})
+                   [&](decltype(*windows.end()) p)
+                   {return p.second == pointerWindow.window;})
       == windows.end())
     return nullptr;
 
