@@ -1,38 +1,12 @@
-TODO, which will get actually done
-==================================
+Border shows focused window
 
-- TeeWorlds: infinite loop while trying to enter chat text with gamepad.
+Disable focus follows mouse
+ - toggle focus with kbd
+ - hotkey for "focus win currently under pointer"
 
-- TeeWorlds: navigate UI with gamepad, auto-switch to correct aiming mode when gamepad is used.
+Focus nearest window under pointer, instead of first match
 
-- TeeWorlds: tap-and-swipe controls.
+Move focused window slightly closer to avoid rounding errors with other windows at same distance
 
-- OpenArena: add dynamic camera button to joystick, add option for joystick tap action.
 
-- OpenArena: tap to aim for aiming modes with shoot button.
-
-- OpenArena: in tap to shoot mode, the second tap must stop shooting.
-
-- OpenArena: UPnP support.
-
-- OpenArena: voting is broken.
-
-- USB Keyboard: options for camera feed size and for redefining remote menu hotkey.
-
-- UQM HD: add fonts from http://mosc-portal.bursa.ru/showthread.php?t=206 and switch back to joystick controls, set 4:3 aspect ratio as default.
-
-- SDL: implement SDL_GL_LoadLibrary() / SDL_GL_GetProcAddress() / SDL_GL_SetAttribute() / SDL_GL_GetAttribute().
-
-- SDL: CompatibilityHacksForceScreenUpdate=y does not redraw screen after putting to background and restoring.
-
-- SDL: request SD card permission on Android 6.
-
-- SDL: add option for non-fullscreen non-immersive mode.
-
-- SDL: new commandline arguments editor adds extra blank parameter at the beginning.
-
-- Debian: proot crashes on Shield TV arm64 box.
-
-- Debian: add harldink simulation to proot, for Android 6.
-
-- Debian: add OpenSL ES output plugin to PulseAudio.
+Mouse click by magnetic sensor ???
