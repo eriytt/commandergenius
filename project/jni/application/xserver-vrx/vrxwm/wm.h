@@ -39,6 +39,8 @@ class WindowManager {
   static std::unique_ptr<WindowManager> Create(
       const std::string& display_str = std::string());
 
+  Display* display();
+
   ~WindowManager();
 
   void Init();

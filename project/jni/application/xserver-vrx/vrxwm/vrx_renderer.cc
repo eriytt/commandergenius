@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <cmath>
 #include <random>
+#include <X11/Xlib.h>
 
 #include "common.h"
 #include "algebra.h"
@@ -208,6 +209,7 @@ namespace {
   }
 
 }  // namespace
+
 
 VRXRenderer::VRXRenderer(gvr_context* gvr_context)
   : gvr_api_(gvr::GvrApi::WrapNonOwned(gvr_context)),
@@ -876,14 +878,22 @@ void VRXRenderer::focusMRUWindow(uint16_t num)
   
   auto it = focusedWindows.begin();
   while(num>0)
-    {
-      it++;
-      --num;
-    }
-  
+  {
+    it++;
+    --num;
+  }
+
   auto tempWinPtr = *it;
   focusedWindows.erase(it);
+  if (focusedWindows.front())
+  {
+    focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
+  }
   focusedWindows.push_front(tempWinPtr);
+  if (focusedWindows.front())
+  {
+    focusedWindows.front()->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
+  }
   LOGI("Window focused: %p", tempWinPtr->handle);
 
 }
@@ -935,4 +945,15 @@ void VRXWindow::updateTransform(const gvr::Mat4f &newHead)
   head = newHead;
   headInverse = MatrixTranspose(head);
   modelView = MatrixMul(headInverse, trans);
+}
+
+void VRXWindow::setBorderColor(Display* display, unsigned long color)
+{
+  Window xWindow = getWindowFromHandle(this->handle);
+  
+  XSetWindowAttributes winAttributes = {};
+  winAttributes.border_pixel = color;
+  
+  XChangeWindowAttributes(display, xWindow, CWBorderPixel, &winAttributes);
+  
 }

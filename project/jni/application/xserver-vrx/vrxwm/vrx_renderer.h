@@ -99,6 +99,7 @@ struct VRXWindow
   float getHalfWidth() const {return width / 2.0f;}
   float getHalfHeight() const {return height / 2.0f;}
   void updateTransform(const gvr::Mat4f &head);
+  void setBorderColor(Display* display, unsigned long color);
 };
 
 class KeyMap

@@ -169,7 +169,7 @@ void WindowManager::Run() {
 void WindowManager::Frame(Window w) {
   // Visual properties of the frame to create.
   const unsigned int BORDER_WIDTH = 10;
-  const unsigned long BORDER_COLOR = 0xff0000;
+  const unsigned long BORDER_COLOR = 0xd0d0d0;
   const unsigned long BG_COLOR = 0x0000ff;
   LOGI("Framing window %d", w);
   CHECK(!clients_.count(w));
@@ -490,4 +490,9 @@ int WindowManager::OnWMDetected(Display* display, XErrorEvent* e) {
   wm_detected_ = true;
   // The return value is ignored.
   return 0;
+}
+
+Display* WindowManager::display()
+{
+  return display_;
 }
