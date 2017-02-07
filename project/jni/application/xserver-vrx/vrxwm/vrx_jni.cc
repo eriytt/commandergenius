@@ -19,6 +19,10 @@
 #include <memory>
 #include <linux/input.h>
 
+extern "C" {
+#include <vrxexport.h>
+}
+
 #include "vr/gvr/capi/include/gvr.h"
 #include "vrx_renderer.h"
 #include "common.h"
@@ -152,6 +156,12 @@ JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_poin
   {
     vrxRenderer->toggleMoveFocusedWindow();
   }
+
+  if (scancode == KEY_ENTER)
+    {
+      VRXMouseButtonEvent(1);
+      VRXMouseButtonEvent(0);
+    }
 
   // Not any known command: exit command mode, but trap key
   vrxRenderer->keyMap().isCommandMode = false;
