@@ -786,10 +786,10 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
 
 void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 {
-  windowMutex.lock();
+  std::lock_guard<std::mutex> lock(windowMutex);
   auto it = windows.find(w);
-  if (it != windows.end()){
-    windowMutex.unlock();
+  if (it != windows.end())
+  {
     return;
   }
 
@@ -799,7 +799,6 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 
   windows[w] = vw;
   addWindowAndFocus(vw);
-  windowMutex.unlock();
 
   LOGW("New window: %p", w);
 }
@@ -807,20 +806,18 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
 {
   LOGI("Destroy window: %p", w);
-  windowMutex.lock();
+  std::lock_guard<std::mutex> lock(windowMutex);
   LOGI("Destroy window: size before destroy: %d", windows.size());
   auto it = windows.find(w);
   if (it == windows.end())
-    {
-      windowMutex.unlock();
-      LOGE("We don't know anything about this window!");
-      return;
-    }
-  
+  {
+    LOGE("We don't know anything about this window!");
+    return;
+  }
+
   focusedWindows.remove(it->second);
   windows.erase(it);
   LOGI("Destroy window: size after destroy: %d", windows.size());
-  windowMutex.unlock();
 }
 
 
