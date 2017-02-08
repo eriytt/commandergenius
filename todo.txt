@@ -1,5 +1,3 @@
-Border shows focused window
-
 Disable focus follows mouse
  - toggle focus with kbd
  - hotkey for "focus win currently under pointer"

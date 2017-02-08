@@ -57,12 +57,17 @@ struct VRXWindow
   VrxWindowTexCoords texCoords;
   float scale = 1.0f;
   float distance = DEFAULT_DISTANCE;
+  Window xWindow = 0;
+
 
 
   
   VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
     : handle(w), buffer(nullptr), texId(0), width(0), height(0),
-      windowCoords(initialPosition) {}
+      windowCoords(initialPosition) 
+  {
+    xWindow = getWindowFromHandle(this->handle);
+  }
 
   void setSize(unsigned int w, unsigned int h)
   {
@@ -164,6 +169,7 @@ class VRXRenderer {
 
   KeyMap& keyMap();
   
+  void addWindowAndFocus(VRXWindow * win);
   void focusMRUWindow(uint16_t num);
   
   void toggleMoveFocusedWindow();

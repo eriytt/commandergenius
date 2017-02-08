@@ -798,7 +798,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   vw->updateTransform(head_view_);
 
   windows[w] = vw;
-  focusedWindows.push_front(vw);
+  addWindowAndFocus(vw);
   windowMutex.unlock();
 
   LOGW("New window: %p", w);
@@ -898,6 +898,21 @@ void VRXRenderer::focusMRUWindow(uint16_t num)
 
 }
 
+void VRXRenderer::addWindowAndFocus(VRXWindow * win)
+{
+  if (focusedWindows.front())
+  {
+    focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
+  }
+  focusedWindows.push_front(win);
+  if (win)
+  {
+    win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
+    LOGI("Window focused: %p", win->handle);
+  }
+
+}
+
 
 bool VRXRenderer::isFocused(const VRXWindow * win)
 {
@@ -949,8 +964,6 @@ void VRXWindow::updateTransform(const gvr::Mat4f &newHead)
 
 void VRXWindow::setBorderColor(Display* display, unsigned long color)
 {
-  Window xWindow = getWindowFromHandle(this->handle);
-  
   XSetWindowAttributes winAttributes = {};
   winAttributes.border_pixel = color;
   
