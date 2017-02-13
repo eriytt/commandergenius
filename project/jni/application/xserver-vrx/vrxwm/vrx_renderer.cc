@@ -424,45 +424,58 @@ void VRXRenderer::DrawFrame() {
   renderWindows.clear();
   windowMutex.lock();
   for (auto wi : windows)
+  {
+    VRXWindow *w = wi.second;
+    unsigned int width, height, mapped;
+    void *fb = VRXGetWindowBuffer(w->handle, &width, &height, &mapped);
+    if (mapped)
     {
-      VRXWindow *w = wi.second;
-      unsigned int width, height, mapped;
-      void *fb = VRXGetWindowBuffer(w->handle, &width, &height, &mapped);
-      if (mapped)
+      if (!w->mapped)
+      {
+        mapWindowAndFocus(w);
+      }
+
+      if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
+      {
+        LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)",
+              w->handle, w->buffer, fb, width, height);
+
+        // TODO: free texture if there was one already
+        if (w->buffer == nullptr)
         {
-          if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
-            {
-              LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)",
-                   w->handle, w->buffer, fb, width, height);
-
-              // TODO: free texture if there was one already
-              if (w->buffer == nullptr)
-                {
-                  w->texWidth = roundUpPow2(width);
-                  w->texHeight = roundUpPow2(height);
-                  w->texId = CreateTexture(w->texWidth, w->texHeight);
-                }
-
-              w->buffer = fb;
-              w->setSize(width, height);
-              w->updateTexCoords();
-            }
-
-          if (w->buffer != nullptr)
-            {
-              glBindTexture(GL_TEXTURE_2D, w->texId);
-              glTexSubImage2D(GL_TEXTURE_2D, 0,
-                              0, 0,
-                              width, height,
-                              GL_RGBA, GL_UNSIGNED_BYTE,
-                              w->buffer);
-              // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-              // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-              //glBindTexture(GL_TEXTURE_2D, 0);
-              renderWindows.push_back(w);
-            }
+            w->texWidth = roundUpPow2(width);
+            w->texHeight = roundUpPow2(height);
+            w->texId = CreateTexture(w->texWidth, w->texHeight);
         }
+
+        w->buffer = fb;
+        w->setSize(width, height);
+        w->updateTexCoords();
+      }
+
+      if (w->buffer != nullptr)
+      {
+        glBindTexture(GL_TEXTURE_2D, w->texId);
+        glTexSubImage2D(GL_TEXTURE_2D, 0,
+                        0, 0,
+                        width, height,
+                        GL_RGBA, GL_UNSIGNED_BYTE,
+                        w->buffer);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        //glBindTexture(GL_TEXTURE_2D, 0);
+        renderWindows.push_back(w);
+      }
     }
+    else    // not mapped
+    {
+      if (w->mapped)
+      {
+        unmapWindow(w);
+      }
+    }
+
+  }
   windowMutex.unlock();
 
   for(auto w : renderWindows)
@@ -503,9 +516,9 @@ void VRXRenderer::DrawFrame() {
 
   if (send_event)
     {
-      LOGI("Send motion event {%d, %d}",
-           pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
-           pointerWindow.y + WindowManager::DESKTOP_SIZE / 2);
+//       LOGI("Send motion event {%d, %d}",
+//            pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
+//            pointerWindow.y + WindowManager::DESKTOP_SIZE / 2);
       VRXMouseMotionEvent(pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
                           pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
     }
@@ -798,8 +811,8 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   vw->updateTransform(head_view_);
 
   windows[w] = vw;
-  addWindowAndFocus(vw);
 
+  LOGI("Create window: size before new window: %d", windows.size());
   LOGW("New window: %p", w);
 }
 
@@ -815,7 +828,8 @@ void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
     return;
   }
 
-  focusedWindows.remove(it->second);
+  unmapWindow(it->second);  // In case it was not unmapped previously
+  delete it->second;
   windows.erase(it);
   LOGI("Destroy window: size after destroy: %d", windows.size());
 }
@@ -854,6 +868,11 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
 
 struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
 {
+  if (focusedWindows.size() == 0){ return nullptr; }
+  
+  return focusedWindows.front()->handle;
+  
+/*
   if (not pointerWindow.window)
     return nullptr;
 
@@ -864,12 +883,14 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
     return nullptr;
 
   return pointerWindow.window->handle;
+*/
 }
 
 void VRXRenderer::focusMRUWindow(uint16_t num)
 {
   // Take win #num in Most Recently Used list and move to front
   if (focusedWindows.size() == 0){ return; }
+  if (focusedWindows.size() <= num){ return; }
 
   num = num % focusedWindows.size();
   
@@ -882,37 +903,43 @@ void VRXRenderer::focusMRUWindow(uint16_t num)
 
   auto tempWinPtr = *it;
   focusedWindows.erase(it);
-  if (focusedWindows.front())
+  if (focusedWindows.size() != 0)   // When we re-focus the only existing window, list may be empty here
   {
+    // Unfocus old front
     focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
   }
   focusedWindows.push_front(tempWinPtr);
-  if (focusedWindows.front())
-  {
-    focusedWindows.front()->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-  }
+  focusedWindows.front()->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
   LOGI("Window focused: %p", tempWinPtr->handle);
 
 }
 
-void VRXRenderer::addWindowAndFocus(VRXWindow * win)
+void VRXRenderer::mapWindowAndFocus(VRXWindow * win)
 {
-  if (focusedWindows.front())
+  win->mapped = true;
+
+  if (focusedWindows.size() != 0)
   {
     focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
   }
   focusedWindows.push_front(win);
-  if (win)
-  {
-    win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-    LOGI("Window focused: %p", win->handle);
-  }
+  win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
+  LOGI("Window mapped + focused: %p", win->handle);
 
+}
+void VRXRenderer::unmapWindow(VRXWindow * win)
+{
+  win->mapped = false;
+  LOGI("Window unmapped: %p", win->handle);
+  focusedWindows.remove(win);
+  focusMRUWindow(0);
 }
 
 
 bool VRXRenderer::isFocused(const VRXWindow * win)
 {
+  if (focusedWindows.size() == 0){ return false; }
+
   return win==focusedWindows.front();
 }
 
@@ -930,7 +957,7 @@ void VRXRenderer::toggleMoveFocusedWindow()
 
 void VRXRenderer::changeWindowSize(float sizeDiff)
 {
-  if (not focusedWindows.size()) return;
+  if (focusedWindows.size() == 0) return;
   VRXWindow *w = focusedWindows.front();
   if (w->scale + sizeDiff <= 0.0) return;
 
@@ -940,7 +967,7 @@ void VRXRenderer::changeWindowSize(float sizeDiff)
 
 void VRXRenderer::changeWindowDistance(float distanceDiff)
 {
-  if (not focusedWindows.size()) return;
+  if (focusedWindows.size() == 0) return;
   VRXWindow *w = focusedWindows.front();
   if (w->distance + distanceDiff <= kZNear) return;
     

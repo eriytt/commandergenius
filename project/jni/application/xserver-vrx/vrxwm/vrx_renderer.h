@@ -58,6 +58,7 @@ struct VRXWindow
   float scale = 1.0f;
   float distance = DEFAULT_DISTANCE;
   Window xWindow = 0;
+  bool mapped = false;
 
 
 
@@ -169,7 +170,8 @@ class VRXRenderer {
 
   KeyMap& keyMap();
   
-  void addWindowAndFocus(VRXWindow * win);
+  void mapWindowAndFocus(VRXWindow * win);
+  void unmapWindow(VRXWindow * win);
   void focusMRUWindow(uint16_t num);
   
   void toggleMoveFocusedWindow();
