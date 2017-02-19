@@ -309,7 +309,7 @@ void VRXRenderer::InitializeGl() {
 
   LOGI("OpenGL initialized");
 
-  wm = WindowManager::Create(":0");
+  wm = WindowManager::Create(this, ":0");
   // TODO: bail if this happens
   if (!wm)
     LOGE("Failed to initialize window manager");
@@ -387,8 +387,8 @@ void VRXRenderer::DrawFrame() {
   frame.Submit(*viewport_list_, head_view_);
 
   renderWindows.clear();
-  windowMutex.lock();
-  for (auto wi : windows)
+  wm->windowMutex.lock();
+  for (auto wi : wm->windows)
   {
     VRXWindow *w = wi.second;
     unsigned int width, height, mapped;
@@ -441,7 +441,7 @@ void VRXRenderer::DrawFrame() {
     }
 
   }
-  windowMutex.unlock();
+  wm->windowMutex.unlock();
 
   for(auto w : renderWindows)
     if (moveFocusedWindow && isFocused(w))
@@ -641,42 +641,6 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
   windowCoords[3*pointNumber+2] = point[2];
 }
 
-void VRXRenderer::handleCreateWindow(struct WindowHandle *w, XID wid)
-{
-  std::lock_guard<std::mutex> lock(windowMutex);
-  auto it = windows.find(w);
-  if (it != windows.end())
-  {
-    return;
-  }
-
-  VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
-  auto vw = new VRXWindow(w, wid, windowCoords);
-  vw->updateTransform(head_view_);
-
-  windows[w] = vw;
-
-  LOGI("Create window: size before new window: %d", windows.size());
-  LOGW("New window: %p", w);
-}
-
-void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
-{
-  LOGI("Destroy window: %p", w);
-  std::lock_guard<std::mutex> lock(windowMutex);
-  LOGI("Destroy window: size before destroy: %d", windows.size());
-  auto it = windows.find(w);
-  if (it == windows.end())
-  {
-    LOGE("We don't know anything about this window!");
-    return;
-  }
-
-  unmapWindow(it->second);  // In case it was not unmapped previously
-  delete it->second;
-  windows.erase(it);
-  LOGI("Destroy window: size after destroy: %d", windows.size());
-}
 
 
 // TODO: This is not really thread safe. We can be sure that window list does not change
@@ -686,7 +650,7 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
 {
   QueryPointerReturn r;
 
-  const VRXWindow *vw = windows[w];
+  const VRXWindow *vw = wm->windows[w];
   gvr::Mat4f headInverse = MatrixTranspose(head_view_);
   Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
   Vec4f window_relative_view_vector = MatrixVectorMul(vw->head, mouse_vector);
@@ -712,9 +676,9 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
 
 struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
 {
-  if (focusedWindows.size() == 0){ return nullptr; }
+  if (wm->focusedWindows.size() == 0){ return nullptr; }
   
-  return focusedWindows.front()->handle;
+  return wm->focusedWindows.front()->handle;
   
 /*
   if (not pointerWindow.window)
@@ -730,43 +694,15 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
 */
 }
 
-void VRXRenderer::focusMRUWindow(uint16_t num)
-{
-  // Take win #num in Most Recently Used list and move to front
-  if (focusedWindows.size() == 0){ return; }
-  if (focusedWindows.size() <= num){ return; }
-
-  num = num % focusedWindows.size();
-  
-  auto it = focusedWindows.begin();
-  while(num>0)
-  {
-    it++;
-    --num;
-  }
-
-  auto tempWinPtr = *it;
-  focusedWindows.erase(it);
-  if (focusedWindows.size() != 0)   // When we re-focus the only existing window, list may be empty here
-  {
-    // Unfocus old front
-    focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
-  }
-  focusedWindows.push_front(tempWinPtr);
-  focusedWindows.front()->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-  LOGI("Window focused: %p", tempWinPtr->handle);
-
-}
-
 void VRXRenderer::mapWindowAndFocus(VRXWindow * win)
 {
   win->mapped = true;
 
-  if (focusedWindows.size() != 0)
+  if (wm->focusedWindows.size() != 0)
   {
-    focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
+    wm->focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
   }
-  focusedWindows.push_front(win);
+  wm->focusedWindows.push_front(win);
   win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
   LOGI("Window mapped + focused: %p", win->handle);
 
@@ -775,16 +711,16 @@ void VRXRenderer::unmapWindow(VRXWindow * win)
 {
   win->mapped = false;
   LOGI("Window unmapped: %p", win->handle);
-  focusedWindows.remove(win);
+  wm->focusedWindows.remove(win);
   focusMRUWindow(0);
 }
 
 
 bool VRXRenderer::isFocused(const VRXWindow * win)
 {
-  if (focusedWindows.size() == 0){ return false; }
+  if (wm->focusedWindows.size() == 0){ return false; }
 
-  return win==focusedWindows.front();
+  return win==wm->focusedWindows.front();
 }
 
 
@@ -801,8 +737,8 @@ void VRXRenderer::toggleMoveFocusedWindow()
 
 void VRXRenderer::changeWindowSize(float sizeDiff)
 {
-  if (focusedWindows.size() == 0) return;
-  VRXWindow *w = focusedWindows.front();
+  if (wm->focusedWindows.size() == 0) return;
+  VRXWindow *w = wm->focusedWindows.front();
   if (w->scale + sizeDiff <= 0.0) return;
 
   w->scale += sizeDiff;
@@ -811,8 +747,8 @@ void VRXRenderer::changeWindowSize(float sizeDiff)
 
 void VRXRenderer::changeWindowDistance(float distanceDiff)
 {
-  if (focusedWindows.size() == 0) return;
-  VRXWindow *w = focusedWindows.front();
+  if (wm->focusedWindows.size() == 0) return;
+  VRXWindow *w = wm->focusedWindows.front();
   if (w->distance + distanceDiff <= kZNear) return;
     
   w->distance += distanceDiff;

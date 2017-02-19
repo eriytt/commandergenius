@@ -26,12 +26,14 @@ extern "C" {
 
 #include "common.h"
 #include "wm-util.h"
+#include "world_layout_data.h"
+#include "vrx_renderer.h"
 
 bool WindowManager::wm_detected_;
 std::mutex WindowManager::wm_detected_mutex_;
 
-std::unique_ptr<WindowManager> WindowManager::Create(
-    const std::string& display_str) {
+std::unique_ptr<WindowManager>
+WindowManager::Create(const VRXRenderer *renderer, const std::string& display_str) {
   // 1. Open X display.
   const char* display_c_str =
         display_str.empty() ? nullptr : display_str.c_str();
@@ -41,14 +43,16 @@ std::unique_ptr<WindowManager> WindowManager::Create(
     return nullptr;
   }
   // 2. Construct WindowManager instance.
-  return std::unique_ptr<WindowManager>(new WindowManager(display));
+  return std::unique_ptr<WindowManager>(new WindowManager(display, renderer));
 }
 
-WindowManager::WindowManager(Display* display)
+WindowManager::WindowManager(Display* display, const VRXRenderer *renderer)
     : display_(CHECK_NOTNULL(display)),
       root_(DefaultRootWindow(display_)),
       WM_PROTOCOLS(XInternAtom(display_, "WM_PROTOCOLS", false)),
-      WM_DELETE_WINDOW(XInternAtom(display_, "WM_DELETE_WINDOW", false)) {
+      WM_DELETE_WINDOW(XInternAtom(display_, "WM_DELETE_WINDOW", false)),
+      renderer(renderer)
+{
 }
 
 WindowManager::~WindowManager() {
@@ -495,4 +499,80 @@ int WindowManager::OnWMDetected(Display* display, XErrorEvent* e) {
 Display* WindowManager::display()
 {
   return display_;
+}
+
+void WindowManager::handleCreateWindow(struct WindowHandle *w, XID wid)
+{
+  std::lock_guard<std::mutex> lock(windowMutex);
+  auto it = windows.find(w);
+  if (it != windows.end())
+  {
+    return;
+  }
+
+  VrxWindowCoords windowCoords =
+    {
+      // Front face
+      -2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+      2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+    };
+  auto vw = new VRXWindow(w, wid, windowCoords);
+  vw->updateTransform(renderer->getHeadView());
+
+  windows[w] = vw;
+
+  LOGI("Create window: size before new window: %d", windows.size());
+  LOGW("New window: %p", w);
+}
+
+void WindowManager::handleDestroyWindow(struct WindowHandle *w)
+{
+  LOGI("Destroy window: %p", w);
+  std::lock_guard<std::mutex> lock(windowMutex);
+  LOGI("Destroy window: size before destroy: %d", windows.size());
+  auto it = windows.find(w);
+  if (it == windows.end())
+  {
+    LOGE("We don't know anything about this window!");
+    return;
+  }
+
+  VRXWindow *win = it->second;
+  //unmapWindow(it->second);  // In case it was not unmapped previously
+  focusedWindows.remove(win);
+
+  delete it->second;
+  windows.erase(it);
+  LOGI("Destroy window: size after destroy: %d", windows.size());
+}
+
+void WindowManager::focusMRUWindow(uint16_t num)
+{
+  // Take win #num in Most Recently Used list and move to front
+  if (focusedWindows.size() == 0){ return; }
+  if (focusedWindows.size() <= num){ return; }
+
+  num = num % focusedWindows.size();
+
+  auto it = focusedWindows.begin();
+  while(num>0)
+  {
+    it++;
+    --num;
+  }
+
+  auto tempWinPtr = *it;
+  focusedWindows.erase(it);
+  if (focusedWindows.size() != 0)   // When we re-focus the only existing window, list may be empty here
+  {
+    // Unfocus old front
+    focusedWindows.front()->setBorderColor(display(), UNFOCUSED_BORDER_COLOR);
+  }
+  focusedWindows.push_front(tempWinPtr);
+  focusedWindows.front()->setBorderColor(display(), FOCUSED_BORDER_COLOR);
+  LOGI("Window focused: %p", tempWinPtr->handle);
 }

@@ -24,7 +24,6 @@
 #include <string>
 #include <thread>  // NOLINT
 #include <vector>
-#include <map>
 #include <list>
 
 #include <linux/input.h>
@@ -35,75 +34,10 @@ extern "C" {
 
 #include "vr/gvr/capi/include/gvr.h"
 #include "vr/gvr/capi/include/gvr_types.h"
-#include "world_layout_data.h"
 #include "wm.h"
 #include "algebra.h"
-
+#include "world_layout_data.h"
 #include "vrx_types.h"
-
-struct VRXWindow
-{
-  static const int DEFAULT_DISTANCE = 500;
-
-  struct WindowHandle *handle;
-  void *buffer;
-  gvr::Mat4f modelView;
-  gvr::Mat4f head;
-  gvr::Mat4f headInverse;
-  unsigned int texId;
-  unsigned int width, height;
-  unsigned int texWidth, texHeight;
-  VrxWindowCoords windowCoords;
-  VrxWindowTexCoords texCoords;
-  float scale = 1.0f;
-  float distance = DEFAULT_DISTANCE;
-  Window xWindow = 0;
-  bool mapped = false;
-
-
-
-  
-  VRXWindow(struct WindowHandle *w, XID wid, const VrxWindowCoords& initialPosition)
-    : handle(w), xWindow(wid), buffer(nullptr), texId(0), width(0), height(0),
-      windowCoords(initialPosition) {}
-
-  void setSize(unsigned int w, unsigned int h)
-  {
-    width = w;
-    height = h;
-    int ws = scale * w;
-    int hs = scale * h;
-    windowCoords = {
-      -ws / 2.0f,  hs / 2.0f,  0.0f,
-      -ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f,  hs / 2.0f,  0.0f,
-      -ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f,  hs / 2.0f,  0.0f,
-    };
-  }
-
-  void updateTexCoords()
-  {
-    float w = width / static_cast<float>(texWidth);
-    float h = height / static_cast<float>(texHeight);
-    texCoords = {
-      0.0f, 0.0f, // v0
-      0.0f,    h, // v1
-         w, 0.0f, // v2
-      0.0f,    h, // v1
-         w,    h, // v3
-         w, 0.0f, // v2
-    };
-  }
-
-  unsigned int getWidth() const {return width;}
-  unsigned int getHeight() const {return height;}
-  float getHalfWidth() const {return width / 2.0f;}
-  float getHalfHeight() const {return height / 2.0f;}
-  void updateTransform(const gvr::Mat4f &head);
-  void setBorderColor(Display* display, unsigned long color);
-};
 
 class KeyMap
 {
@@ -164,12 +98,13 @@ class VRXRenderer {
   
   void mapWindowAndFocus(VRXWindow * win);
   void unmapWindow(VRXWindow * win);
-  void focusMRUWindow(uint16_t num);
+  void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
   
   void toggleMoveFocusedWindow();
   
   void changeWindowSize(float sizeDiff);
   void changeWindowDistance(float distanceDiff);
+  const gvr::Mat4f &getHeadView() const {return head_view_;}
  private:
 
   /*
@@ -244,24 +179,19 @@ class VRXRenderer {
 
   std::unique_ptr<WindowManager> wm;
 
-  void handleCreateWindow(struct WindowHandle *pWin, XID wid);
-  void handleDestroyWindow(struct WindowHandle *pWin);
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
   struct WindowHandle *handleQueryPointerWindow();
 
   static void CreateWindow(struct WindowHandle *pWin, XID wid, void *instance)
-  {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin, wid);}
+  {reinterpret_cast<VRXRenderer*>(instance)->wm->handleCreateWindow(pWin, wid);}
   static void DestroyWindow(struct WindowHandle *pWin, void *instance)
-  {reinterpret_cast<VRXRenderer*>(instance)->handleDestroyWindow(pWin);}
+  {reinterpret_cast<VRXRenderer*>(instance)->wm->handleDestroyWindow(pWin);}
   static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
   {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointer(pWin);}
   static struct WindowHandle *QueryPointerWindow(void *instance)
   {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointerWindow();}
 
-  std::mutex windowMutex;
-  std::map<struct WindowHandle*, VRXWindow *> windows;
   std::list<VRXWindow *> renderWindows;
-  std::list<VRXWindow *> focusedWindows;
 
   struct VRXPointerWindow
   {

@@ -26,7 +26,15 @@ extern "C" {
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <map>
+#include <list>
+
+#include "vr/gvr/capi/include/gvr.h"
+#include "vr/gvr/capi/include/gvr_types.h"
+
+#include "vrx_types.h"
 #include "wm-util.h"
+#include "vrxwindow.hh"
 
 // Implementation of a window manager for an X screen.
 class WindowManager {
@@ -36,8 +44,8 @@ class WindowManager {
   // Creates a WindowManager instance for the X display/screen specified by the
   // argument string, or if unspecified, the DISPLAY environment variable. On
   // failure, returns nullptr.
-  static std::unique_ptr<WindowManager> Create(
-      const std::string& display_str = std::string());
+  static std::unique_ptr<WindowManager>
+  Create(const class VRXRenderer *renderer, const std::string& display_str = std::string());
 
   Display* display();
 
@@ -48,7 +56,7 @@ class WindowManager {
 
  private:
   // Invoked internally by Create().
-  WindowManager(Display* display);
+  WindowManager(Display* display, const class VRXRenderer *renderer);
   // Frames a top-level window.
   void Frame(Window w);
   // Unframes a client window.
@@ -102,6 +110,19 @@ class WindowManager {
 
   int cEventBase;
   int cErrorBase;
+
+  const class VRXRenderer *renderer;
+
+public:
+  std::mutex windowMutex;
+  std::map<struct WindowHandle*, VRXWindow *> windows;
+  std::list<VRXWindow *> focusedWindows;
+
+  void handleCreateWindow(struct WindowHandle *pWin, XID wid);
+  void handleDestroyWindow(struct WindowHandle *pWin);
+
+  // TODO: shoul probably not be public
+  void focusMRUWindow(uint16_t num);
 };
 
 #endif
