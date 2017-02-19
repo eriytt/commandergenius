@@ -217,10 +217,6 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
     floor_vertices_(nullptr),
     floor_colors_(nullptr),
     floor_normals_(nullptr),
-    cube_vertices_(nullptr),
-    cube_colors_(nullptr),
-    cube_found_colors_(nullptr),
-    cube_normals_(nullptr),
     light_pos_world_space_({0.0f, 200.0f, 0.0f, 1.0f}),
     object_distance_(3.5f),
     floor_depth_(1024.0f),
@@ -241,11 +237,6 @@ void VRXRenderer::InitializeGl() {
 
   glClearColor(0.1f, 0.1f, 0.1f, 0.5f);  // Dark background so text shows up.
 
-  cube_vertices_ = world_layout_data_.CUBE_COORDS.data();
-  cube_tex_coords_ = world_layout_data_.CUBE_TEX_COORDS.data();
-  cube_colors_ = world_layout_data_.CUBE_COLORS.data();
-  cube_found_colors_ = world_layout_data_.CUBE_FOUND_COLORS.data();
-  cube_normals_ = world_layout_data_.CUBE_NORMALS.data();
   floor_vertices_ = world_layout_data_.FLOOR_COORDS.data();
   floor_normals_ = world_layout_data_.FLOOR_NORMALS.data();
   floor_colors_ = world_layout_data_.FLOOR_COLORS.data();
@@ -254,28 +245,6 @@ void VRXRenderer::InitializeGl() {
   int grid_shader = LoadGLShader(GL_FRAGMENT_SHADER, &kGridFragmentShader);
   int pass_through_shader = LoadGLShader(GL_FRAGMENT_SHADER,
                                          &kPassthroughFragmentShader);
-
-  cube_program_ = glCreateProgram();
-  glAttachShader(cube_program_, vertex_shader);
-  glAttachShader(cube_program_, pass_through_shader);
-  glLinkProgram(cube_program_);
-  glUseProgram(cube_program_);
-  CheckGLError("Cube program");
-
-
-  
-  cube_position_param_ = glGetAttribLocation(cube_program_, "a_Position");
-  cube_normal_param_ = glGetAttribLocation(cube_program_, "a_Normal");
-  cube_tex_coord_param_ = glGetAttribLocation(cube_program_, "a_Texcoord");
-  cube_color_param_ = glGetAttribLocation(cube_program_, "a_Color");
-
-  cube_model_param_ = glGetUniformLocation(cube_program_, "u_Model");
-  cube_modelview_param_ = glGetUniformLocation(cube_program_, "u_MVMatrix");
-  cube_modelview_projection_param_ =
-    glGetUniformLocation(cube_program_, "u_MVP");
-  cube_light_pos_param_ = glGetUniformLocation(cube_program_, "u_LightPos");
-
-  CheckGLError("Cube program params");
 
   floor_program_ = glCreateProgram();
   glAttachShader(floor_program_, vertex_shader);
@@ -317,10 +286,6 @@ void VRXRenderer::InitializeGl() {
   wMVP_param = glGetUniformLocation(windowProgram, "u_MVP");
   
   // Object first appears directly in front of user.
-  model_cube_ = {1.0f, 0.0f, 0.0f, 0.0f,
-                 0.0f, 0.707f, -0.707f, 0.0f,
-                 0.0f, 0.707f, 0.707f, -object_distance_,
-                 0.0f, 0.0f, 0.0f, 1.0f};
   model_floor_ = {1.0f, 0.0f, 0.0f, 0.0f,
                   0.0f, 1.0f, 0.0f, -floor_depth_,
                   0.0f, 0.0f, 1.0f, 0.0f,
@@ -516,9 +481,6 @@ void VRXRenderer::DrawFrame() {
 
   if (send_event)
     {
-//       LOGI("Send motion event {%d, %d}",
-//            pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
-//            pointerWindow.y + WindowManager::DESKTOP_SIZE / 2);
       VRXMouseMotionEvent(pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
                           pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
     }
@@ -536,12 +498,6 @@ void VRXRenderer::PrepareFramebuffer() {
     // We need to resize the framebuffer.
     swapchain_->ResizeBuffer(0, recommended_size);
     render_size_ = recommended_size;
-  }
-}
-
-void VRXRenderer::OnTriggerEvent() {
-  if (IsLookingAtObject()) {
-    HideObject();
   }
 }
 
@@ -587,10 +543,6 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   gvr::Mat4f perspective =
     PerspectiveMatrixFromView(params.GetSourceFov(), kZNear, kZFar);
 
-  modelview_ = MatrixMul(view_matrix, model_cube_);
-  modelview_projection_cube_ = MatrixMul(perspective, modelview_);
-  //DrawCube();
-
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_BLEND);
 
@@ -611,14 +563,6 @@ void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
 {
   glUseProgram(windowProgram);
 
-  // Set the Model in the shader, used to calculate lighting
-  // glUniformMatrix4fv(cube_model_param_, 1, GL_FALSE,
-  //                    MatrixToGLArray(model_cube_).data());
-
-  // Set the ModelView in the shader, used to calculate lighting
-  // glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
-  //                    MatrixToGLArray(modelview_).data());
-  
   // Set the position of the window
   glVertexAttribPointer(wPos_param, kCoordsPerVertex, GL_FLOAT, false, 0,
                         win->windowCoords.data());
@@ -645,69 +589,9 @@ void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
 
   CheckGLError("Drawing window: view matrix");
 
-  // The parameters below are sometimes optimized away, and not available
-  // Set the normal positions of the cube, again for shading
-  // if( cube_normal_param_ != -1 ){
-  //   glVertexAttribPointer( cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
-  //   glEnableVertexAttribArray(cube_normal_param_);
-  // }
-
-  // if( cube_color_param_ != -1 ){
-  //   glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-  //                       IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
-  //   glEnableVertexAttribArray(cube_color_param_);
-  // }
-
-
   glDrawArrays(GL_TRIANGLES, 0, 6);
   CheckGLError("Drawing window");
   //glActiveTexture(GL_TEXTURE0);
-}
-
-void VRXRenderer::DrawCube() {
-  glUseProgram(cube_program_);
-
-  glUniform3fv(cube_light_pos_param_, 1, light_pos_eye_space_.data());
-
-  // Set the Model in the shader, used to calculate lighting
-  glUniformMatrix4fv(cube_model_param_, 1, GL_FALSE,
-                     MatrixToGLArray(model_cube_).data());
-
-  // Set the ModelView in the shader, used to calculate lighting
-  glUniformMatrix4fv(cube_modelview_param_, 1, GL_FALSE,
-                     MatrixToGLArray(modelview_).data());
-
-  // Set the position of the cube
-  glVertexAttribPointer(cube_position_param_, kCoordsPerVertex, GL_FLOAT,
-                        false, 0, cube_vertices_);
-  glEnableVertexAttribArray(cube_position_param_);
-
-  // Set texture
-  glVertexAttribPointer(cube_tex_coord_param_, 2, GL_FLOAT, false, 0, cube_tex_coords_);
-  glEnableVertexAttribArray(cube_tex_coord_param_);
-  glActiveTexture(GL_TEXTURE0);
-
-  // Set the ModelViewProjection matrix in the shader.
-  glUniformMatrix4fv(cube_modelview_projection_param_, 1, GL_FALSE,
-                     MatrixToGLArray(modelview_projection_cube_).data());
-
-  // The parameters below are sometimes optimized away, and not available
-  // Set the normal positions of the cube, again for shading
-  if( cube_normal_param_ != -1 ){
-    glVertexAttribPointer( cube_normal_param_, 3, GL_FLOAT, false, 0, cube_normals_);
-    glEnableVertexAttribArray(cube_normal_param_);
-  }
-
-  if( cube_color_param_ != -1 ){
-    glVertexAttribPointer(cube_color_param_, 4, GL_FLOAT, false, 0,
-                          IsLookingAtObject() ? cube_found_colors_ :cube_colors_);
-    glEnableVertexAttribArray(cube_color_param_);
-  }
-
-
-  glDrawArrays(GL_TRIANGLES, 0, 36);
-  CheckGLError("Drawing cube");
-  glActiveTexture(GL_TEXTURE0);
 }
 
 void VRXRenderer::DrawFloor() {
@@ -735,46 +619,6 @@ void VRXRenderer::DrawFloor() {
   glDrawArrays(GL_TRIANGLES, 0, 24);
 
   CheckGLError("Drawing floor");
-}
-
-void VRXRenderer::HideObject() {
-  static const float kMaxModelDistance = 7.0f;
-  static const float kMinModelDistance = 3.0f;
-
-  std::array<float, 4> cube_position = {
-    model_cube_.m[0][3], model_cube_.m[1][3], model_cube_.m[2][3], 1.f};
-
-  // First rotate in XZ plane, between pi/2 and 3pi/2 radians away, apply this
-  // to model_cube_ to keep the front face of the cube towards the user.
-  float angle_xz = M_PI * (RandomUniformFloat() + 0.5f);
-  gvr::Mat4f rotation_matrix = {{{cosf(angle_xz), 0.f, -sinf(angle_xz), 0.f},
-                                 {0.f, 1.f, 0.f, 0.f},
-                                 {sinf(angle_xz), 0.f, cosf(angle_xz), 0.f},
-                                 {0.f, 0.f, 0.f, 1.f}}};
-  cube_position = MatrixVectorMul(rotation_matrix, cube_position);
-  model_cube_ = MatrixMul(rotation_matrix, model_cube_);
-
-  // Pick a new distance for the cube, and apply that scale to the position.
-  float old_object_distance = object_distance_;
-  object_distance_ =
-    RandomUniformFloat() * (kMaxModelDistance - kMinModelDistance) +
-    kMinModelDistance;
-  float scale = object_distance_ / old_object_distance;
-  cube_position[0] *= scale;
-  cube_position[1] *= scale;
-  cube_position[2] *= scale;
-
-  // Choose a random yaw for the cube between pi/4 and -pi/4.
-  float yaw = M_PI * (RandomUniformFloat() - 0.5f) / 2;
-  cube_position[1] = tanf(yaw) * object_distance_;
-
-  model_cube_.m[0][3] = cube_position[0];
-  model_cube_.m[1][3] = cube_position[1];
-  model_cube_.m[2][3] = cube_position[2];
-}
-
-bool VRXRenderer::IsLookingAtObject() {
-  return false;
 }
 
 static

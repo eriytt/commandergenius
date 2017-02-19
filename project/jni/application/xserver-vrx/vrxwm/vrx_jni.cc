@@ -62,11 +62,6 @@ JNI_METHOD(void, nativeDrawFrame)(JNIEnv *env, jobject obj,
   native(native_vrx_pointer)->DrawFrame();
 }
 
-JNI_METHOD(void, nativeOnTriggerEvent)(JNIEnv *env, jobject obj,
-                                       jlong native_vrx_pointer) {
-  native(native_vrx_pointer)->OnTriggerEvent();
-}
-
 JNI_METHOD(void, nativeOnPause)(JNIEnv *env, jobject obj,
                                 jlong native_vrx_pointer) {
   native(native_vrx_pointer)->OnPause();

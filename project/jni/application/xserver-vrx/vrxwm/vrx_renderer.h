@@ -154,11 +154,6 @@ class VRXRenderer {
   void DrawFrame();
 
   /**
-   * Hide the cube if it's being targeted.
-   */
-  void OnTriggerEvent();
-
-  /**
    * Pause head tracking.
    */
   void OnPause();
@@ -193,14 +188,6 @@ class VRXRenderer {
   void DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
                const gvr::BufferViewport& params);
 
-  /**
-   * Draw the cube.
-   *
-   * We've set all of our transformation matrices. Now we simply pass them
-   * into the shader.
-   */
-  void DrawCube();
-
   void DrawWindow(VRXWindow *win, const gvr::Mat4f &perspective);
 
   /**
@@ -212,22 +199,6 @@ class VRXRenderer {
    */
   void DrawFloor();
 
-  /**
-   * Find a new random position for the object.
-   *
-   * We'll rotate it around the Y-axis so it's out of sight, and then up or
-   * down by a little bit.
-   */
-  void HideObject();
-
-  /**
-   * Check if user is looking at object by calculating where the object is
-   * in eye-space.
-   *
-   * @return true if the user is looking at the object.
-   */
-  bool IsLookingAtObject();
-  
   bool isFocused(const VRXWindow * win);
   
 
@@ -244,22 +215,8 @@ class VRXRenderer {
   float* floor_vertices_;
   float* floor_colors_;
   float* floor_normals_;
-  float* cube_vertices_;
-  float *cube_tex_coords_;
-  float* cube_colors_;
-  float* cube_found_colors_;
-  float* cube_normals_;
 
-  int cube_program_;
   int floor_program_;
-  int cube_position_param_;
-  int cube_normal_param_;
-  int cube_tex_coord_param_;
-  int cube_color_param_;
-  int cube_model_param_;
-  int cube_modelview_param_;
-  int cube_modelview_projection_param_;
-  int cube_light_pos_param_;
   int floor_position_param_;
   int floor_normal_param_;
   int floor_color_param_;
@@ -271,10 +228,8 @@ class VRXRenderer {
   std::array<float, 4> light_pos_world_space_;
   std::array<float, 4> light_pos_eye_space_;
   gvr::Mat4f head_view_;
-  gvr::Mat4f model_cube_;
   gvr::Mat4f camera_;
   gvr::Mat4f view_;
-  gvr::Mat4f modelview_projection_cube_;
   gvr::Mat4f modelview_projection_floor_;
   gvr::Mat4f modelview_;
   gvr::Mat4f model_floor_;

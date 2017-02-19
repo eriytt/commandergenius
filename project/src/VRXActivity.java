@@ -110,19 +110,6 @@ public class VRXActivity extends Activity {
             nativeDrawFrame(nativeVRXRenderer);
           }
         });
-    // glSurfaceView.setOnTouchListener(
-    //     new View.OnTouchListener() {
-    //       @Override
-    //       public boolean onTouch(View v, MotionEvent event) {
-    //         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-    //           // Give user feedback and signal a trigger event.
-    //           ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(50);
-    //           nativeOnTriggerEvent(nativeVRXRenderer);
-    //           return true;
-    //         }
-    //         return false;
-    //       }
-    //     });
     gvrLayout.setPresentationView(glSurfaceView);
 
     // Add the GvrLayout to the View hierarchy.
@@ -279,7 +266,6 @@ public class VRXActivity extends Activity {
   private native void nativeDestroyRenderer(long nativeVRXRenderer);
   private native void nativeInitializeGl(long nativeVRXRenderer);
   private native long nativeDrawFrame(long nativeVRXRenderer);
-  private native void nativeOnTriggerEvent(long nativeVRXRenderer);
   private native void nativeOnPause(long nativeVRXRenderer);
   private native void nativeOnResume(long nativeVRXRenderer);
   private native int nativeWMEvent(long nativeVRXRenderer, int scancode, boolean down);
