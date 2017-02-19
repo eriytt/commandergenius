@@ -641,7 +641,7 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
   windowCoords[3*pointNumber+2] = point[2];
 }
 
-void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
+void VRXRenderer::handleCreateWindow(struct WindowHandle *w, XID wid)
 {
   std::lock_guard<std::mutex> lock(windowMutex);
   auto it = windows.find(w);
@@ -651,7 +651,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   }
 
   VrxWindowCoords windowCoords = world_layout_data_.WINDOW_COORDS;  // Initial window coordinates
-  auto vw = new VRXWindow(w, windowCoords);
+  auto vw = new VRXWindow(w, wid, windowCoords);
   vw->updateTransform(head_view_);
 
   windows[w] = vw;

@@ -63,12 +63,9 @@ struct VRXWindow
 
 
   
-  VRXWindow(struct WindowHandle *w, const VrxWindowCoords& initialPosition) 
-    : handle(w), buffer(nullptr), texId(0), width(0), height(0),
-      windowCoords(initialPosition) 
-  {
-    xWindow = getWindowFromHandle(this->handle);
-  }
+  VRXWindow(struct WindowHandle *w, XID wid, const VrxWindowCoords& initialPosition)
+    : handle(w), xWindow(wid), buffer(nullptr), texId(0), width(0), height(0),
+      windowCoords(initialPosition) {}
 
   void setSize(unsigned int w, unsigned int h)
   {
@@ -247,13 +244,13 @@ class VRXRenderer {
 
   std::unique_ptr<WindowManager> wm;
 
-  void handleCreateWindow(struct WindowHandle *pWin);
+  void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
   struct WindowHandle *handleQueryPointerWindow();
 
-  static void CreateWindow(struct WindowHandle *pWin, void *instance)
-  {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin);}
+  static void CreateWindow(struct WindowHandle *pWin, XID wid, void *instance)
+  {reinterpret_cast<VRXRenderer*>(instance)->handleCreateWindow(pWin, wid);}
   static void DestroyWindow(struct WindowHandle *pWin, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->handleDestroyWindow(pWin);}
   static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
