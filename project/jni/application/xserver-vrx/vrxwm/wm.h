@@ -47,8 +47,6 @@ class WindowManager {
   static std::unique_ptr<WindowManager>
   Create(const class VRXRenderer *renderer, const std::string& display_str = std::string());
 
-  Display* display();
-
   ~WindowManager();
 
   void Init();
@@ -121,8 +119,10 @@ public:
   void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
 
-  // TODO: shoul probably not be public
+  // TODO: should probably not be public
   void focusMRUWindow(uint16_t num);
+  void mapWindowAndFocus(VRXWindow * win);
+  void unmapWindow(VRXWindow * win);
 };
 
 #endif

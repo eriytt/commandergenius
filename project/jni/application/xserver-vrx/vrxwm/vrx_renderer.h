@@ -96,8 +96,6 @@ class VRXRenderer {
 
   KeyMap& keyMap();
   
-  void mapWindowAndFocus(VRXWindow * win);
-  void unmapWindow(VRXWindow * win);
   void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
   
   void toggleMoveFocusedWindow();

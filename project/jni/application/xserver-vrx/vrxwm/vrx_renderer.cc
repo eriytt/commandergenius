@@ -397,7 +397,7 @@ void VRXRenderer::DrawFrame() {
     {
       if (!w->mapped)
       {
-        mapWindowAndFocus(w);
+        wm->mapWindowAndFocus(w);
       }
 
       if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
@@ -436,7 +436,7 @@ void VRXRenderer::DrawFrame() {
     {
       if (w->mapped)
       {
-        unmapWindow(w);
+        wm->unmapWindow(w);
       }
     }
 
@@ -693,36 +693,6 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
   return pointerWindow.window->handle;
 */
 }
-
-void VRXRenderer::mapWindowAndFocus(VRXWindow * win)
-{
-  win->mapped = true;
-
-  if (wm->focusedWindows.size() != 0)
-  {
-    wm->focusedWindows.front()->setBorderColor(wm->display(), UNFOCUSED_BORDER_COLOR);
-  }
-  wm->focusedWindows.push_front(win);
-  win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-  LOGI("Window mapped + focused: %p", win->handle);
-
-}
-void VRXRenderer::unmapWindow(VRXWindow * win)
-{
-  win->mapped = false;
-  LOGI("Window unmapped: %p", win->handle);
-  wm->focusedWindows.remove(win);
-  focusMRUWindow(0);
-}
-
-
-bool VRXRenderer::isFocused(const VRXWindow * win)
-{
-  if (wm->focusedWindows.size() == 0){ return false; }
-
-  return win==wm->focusedWindows.front();
-}
-
 
 KeyMap& VRXRenderer::keyMap()
 {

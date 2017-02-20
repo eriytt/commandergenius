@@ -496,11 +496,6 @@ int WindowManager::OnWMDetected(Display* display, XErrorEvent* e) {
   return 0;
 }
 
-Display* WindowManager::display()
-{
-  return display_;
-}
-
 void WindowManager::handleCreateWindow(struct WindowHandle *w, XID wid)
 {
   std::lock_guard<std::mutex> lock(windowMutex);
@@ -570,9 +565,38 @@ void WindowManager::focusMRUWindow(uint16_t num)
   if (focusedWindows.size() != 0)   // When we re-focus the only existing window, list may be empty here
   {
     // Unfocus old front
-    focusedWindows.front()->setBorderColor(display(), UNFOCUSED_BORDER_COLOR);
+    focusedWindows.front()->setBorderColor(display_, UNFOCUSED_BORDER_COLOR);
   }
   focusedWindows.push_front(tempWinPtr);
-  focusedWindows.front()->setBorderColor(display(), FOCUSED_BORDER_COLOR);
+  focusedWindows.front()->setBorderColor(display_, FOCUSED_BORDER_COLOR);
   LOGI("Window focused: %p", tempWinPtr->handle);
 }
+
+void WindowManager::mapWindowAndFocus(VRXWindow * win)
+{
+  win->mapped = true;
+
+  if (focusedWindows.size() != 0)
+  {
+    focusedWindows.front()->setBorderColor(display_, UNFOCUSED_BORDER_COLOR);
+  }
+  focusedWindows.push_front(win);
+  win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
+  LOGI("Window mapped + focused: %p", win->handle);
+
+}
+void WindowManager::unmapWindow(VRXWindow * win)
+{
+  win->mapped = false;
+  LOGI("Window unmapped: %p", win->handle);
+  focusedWindows.remove(win);
+  focusMRUWindow(0);
+}
+
+bool VRXRenderer::isFocused(const VRXWindow * win)
+{
+  if (wm->focusedWindows.size() == 0){ return false; }
+
+  return win==wm->focusedWindows.front();
+}
+
