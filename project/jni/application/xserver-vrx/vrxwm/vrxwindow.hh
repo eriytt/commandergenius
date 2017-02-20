@@ -1,5 +1,12 @@
 #pragma once
 
+#include <X11/Xlib.h>
+
+#include "vr/gvr/capi/include/gvr.h"
+#include "vr/gvr/capi/include/gvr_types.h"
+
+#include "vrx_types.h"
+
 struct VRXWindow
 {
   static const int DEFAULT_DISTANCE = 500;

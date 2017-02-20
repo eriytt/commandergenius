@@ -18,7 +18,6 @@
 #include <assert.h>
 #include <cmath>
 #include <random>
-#include <X11/Xlib.h>
 
 #include "common.h"
 #include "algebra.h"
@@ -723,24 +722,4 @@ void VRXRenderer::changeWindowDistance(float distanceDiff)
     
   w->distance += distanceDiff;
   w->updateTransform(w->head);
-}
-
-void VRXWindow::updateTransform(const gvr::Mat4f &newHead)
-{
-  gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,      0.0f,
-                      0.0f,   1.0,     0.0f,      0.0f,
-                      0.0f,   0.0f,    1.0f, -distance,
-                      0.0f,   0.0f,    0.0f,      1.0f};
-  head = newHead;
-  headInverse = MatrixTranspose(head);
-  modelView = MatrixMul(headInverse, trans);
-}
-
-void VRXWindow::setBorderColor(Display* display, unsigned long color)
-{
-  XSetWindowAttributes winAttributes = {};
-  winAttributes.border_pixel = color;
-  
-  XChangeWindowAttributes(display, xWindow, CWBorderPixel, &winAttributes);
-  
 }
