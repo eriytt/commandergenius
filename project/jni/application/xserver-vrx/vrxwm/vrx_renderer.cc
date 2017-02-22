@@ -813,7 +813,7 @@ void VRXRenderer::handleCreateWindow(struct WindowHandle *w)
   windows[w] = vw;
 
   LOGI("Create window: size before new window: %d", windows.size());
-  LOGW("New window: %p", w);
+  LOGW("New window: %p %d", w, vw->xWindow);
 }
 
 void VRXRenderer::handleDestroyWindow(struct WindowHandle *w)
@@ -868,11 +868,6 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
 
 struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
 {
-  if (focusedWindows.size() == 0){ return nullptr; }
-  
-  return focusedWindows.front()->handle;
-  
-/*
   if (not pointerWindow.window)
     return nullptr;
 
@@ -883,7 +878,6 @@ struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
     return nullptr;
 
   return pointerWindow.window->handle;
-*/
 }
 
 void VRXRenderer::focusMRUWindow(uint16_t num)
@@ -910,8 +904,9 @@ void VRXRenderer::focusMRUWindow(uint16_t num)
   }
   focusedWindows.push_front(tempWinPtr);
   focusedWindows.front()->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-  LOGI("Window focused: %p", tempWinPtr->handle);
+  wm->setFocus(focusedWindows.front()->xWindow);
 
+  LOGI("Window focused: %p", tempWinPtr->handle);
 }
 
 void VRXRenderer::mapWindowAndFocus(VRXWindow * win)
@@ -924,9 +919,11 @@ void VRXRenderer::mapWindowAndFocus(VRXWindow * win)
   }
   focusedWindows.push_front(win);
   win->setBorderColor(wm->display(), FOCUSED_BORDER_COLOR);
-  LOGI("Window mapped + focused: %p", win->handle);
+  wm->setFocus(focusedWindows.front()->xWindow);
 
+  LOGI("Window mapped + focused: %p", win->handle);
 }
+
 void VRXRenderer::unmapWindow(VRXWindow * win)
 {
   win->mapped = false;

@@ -496,3 +496,25 @@ Display* WindowManager::display()
 {
   return display_;
 }
+
+void WindowManager::setFocus(Window frame)
+{
+  LOGI("WindowManager::setFocus frame %d", frame);
+  Window win = 0;
+  for (auto& client : clients_){
+    if (client.second == frame ){
+      win = client.first;
+      break;
+    }
+  }
+  
+  if (win == 0) {
+    LOGE("WindowManager::setFocus frame not found: %d", frame);
+    return;
+  }
+
+  XRaiseWindow(display_, frame);
+  XSetInputFocus(display_, win, RevertToPointerRoot, CurrentTime);
+
+  LOGI("WindowManager::setFocus frame %d => window %d", frame, win);
+}
