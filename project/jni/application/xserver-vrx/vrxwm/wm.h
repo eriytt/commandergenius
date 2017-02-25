@@ -52,6 +52,8 @@ class WindowManager {
   void Init();
   void Run();
 
+  void setFocus(Window w);
+
  private:
   // Invoked internally by Create().
   WindowManager(Display* display, const class VRXRenderer *renderer);

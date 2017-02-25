@@ -569,6 +569,8 @@ void WindowManager::focusMRUWindow(uint16_t num)
   }
   focusedWindows.push_front(tempWinPtr);
   focusedWindows.front()->setBorderColor(display_, FOCUSED_BORDER_COLOR);
+  setFocus(focusedWindows.front()->xWindow);
+
   LOGI("Window focused: %p", tempWinPtr->handle);
 }
 
@@ -582,9 +584,11 @@ void WindowManager::mapWindowAndFocus(VRXWindow * win)
   }
   focusedWindows.push_front(win);
   win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
-  LOGI("Window mapped + focused: %p", win->handle);
+  setFocus(focusedWindows.front()->xWindow);
 
+  LOGI("Window mapped + focused: %p", win->handle);
 }
+
 void WindowManager::unmapWindow(VRXWindow * win)
 {
   win->mapped = false;
@@ -600,3 +604,24 @@ bool VRXRenderer::isFocused(const VRXWindow * win)
   return win==wm->focusedWindows.front();
 }
 
+void WindowManager::setFocus(Window frame)
+{
+  LOGI("WindowManager::setFocus frame %d", frame);
+  Window win = 0;
+  for (auto& client : clients_){
+    if (client.second == frame ){
+      win = client.first;
+      break;
+    }
+  }
+
+  if (win == 0) {
+    LOGE("WindowManager::setFocus frame not found: %d", frame);
+    return;
+  }
+
+  XRaiseWindow(display_, frame);
+  XSetInputFocus(display_, win, RevertToPointerRoot, CurrentTime);
+
+  LOGI("WindowManager::setFocus frame %d => window %d", frame, win);
+}

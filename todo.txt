@@ -2,6 +2,8 @@ Disable focus follows mouse
  - toggle focus with kbd
  - hotkey for "focus win currently under pointer"
 
+Move code regarding focus to WM???
+ 
 Focus nearest window under pointer, instead of first match
 
 Move focused window slightly closer to avoid rounding errors with other windows at same distance

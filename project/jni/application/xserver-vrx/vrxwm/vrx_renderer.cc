@@ -640,8 +640,6 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
   windowCoords[3*pointNumber+2] = point[2];
 }
 
-
-
 // TODO: This is not really thread safe. We can be sure that window list does not change
 //       under our feet, but any of the matrices used in transforms change, and in particular
 //       between transforms from eye space to world space and back.
@@ -675,22 +673,17 @@ QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
 
 struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
 {
-  if (wm->focusedWindows.size() == 0){ return nullptr; }
-  
-  return wm->focusedWindows.front()->handle;
-  
-/*
-  if (not pointerWindow.window)
-    return nullptr;
+  // if (not pointerWindow.window)
+  //   return nullptr;
 
-  if (std::find_if(windows.begin(), windows.end(),
-                   [&](decltype(*windows.end()) p)
-                   {return p.second == pointerWindow.window;})
-      == windows.end())
-    return nullptr;
+  // if (std::find_if(windows.begin(), windows.end(),
+  //                  [&](decltype(*windows.end()) p)
+  //                  {return p.second == pointerWindow.window;})
+  //     == windows.end())
+  //   return nullptr;
 
-  return pointerWindow.window->handle;
-*/
+  // return pointerWindow.window->handle;
+  return nullptr;
 }
 
 KeyMap& VRXRenderer::keyMap()
