@@ -21,7 +21,9 @@
 
 extern "C" {
 #include <X11/Xlib.h>
+#include <vrxexport.h>
 }
+
 #include <memory>
 #include <mutex>
 #include <string>
@@ -113,18 +115,34 @@ class WindowManager {
 
   const class VRXRenderer *renderer;
 
+  struct VRXPointerWindow
+  {
+    const VRXWindow *window;
+    short int x, y;
+  };
+
+  VRXPointerWindow pointerWindow;
+
+
 public:
-  std::mutex windowMutex;
-  std::map<struct WindowHandle*, VRXWindow *> windows;
+  std::map<XID, VRXWindow *> windows;
   std::list<VRXWindow *> focusedWindows;
+
+  std::mutex windowMutex;
+  std::map<XID, struct WindowHandle *> whandles;
 
   void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
 
   // TODO: should probably not be public
+  struct WindowHandle *idToHandle(XID wid);
   void focusMRUWindow(uint16_t num);
   void mapWindowAndFocus(VRXWindow * win);
   void unmapWindow(VRXWindow * win);
+  void prepareRenderWindows(std::list<struct VRXWindow *> &renderWindows);
+  struct WindowHandle *handleQueryPointerWindow();
+  QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
+  void updateCursorWindow(std::list<struct VRXWindow *> &renderWindows);
 };
 
 #endif

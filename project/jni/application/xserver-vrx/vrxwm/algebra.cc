@@ -41,3 +41,21 @@ gvr::Mat4f MatrixTranspose(const gvr::Mat4f& matrix)
   return result;
 }
 
+std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
+                                     const std::array<float, 4>& vec)
+{
+  std::array<float, 4> result;
+  for (int i = 0; i < 4; ++i) {
+    result[i] = 0;
+    for (int k = 0; k < 4; ++k) {
+      result[i] += matrix.m[i][k] * vec[k];
+    }
+  }
+  return result;
+}
+
+Vec4f MatrixVectorMul(const gvr::Mat4f& matrix, const Vec4f& vec)
+{
+  std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
+  return Vec4f(r[0], r[1], r[2], r[3]);
+}

@@ -121,24 +121,6 @@ namespace {
     "  gl_FragColor = texture2D(u_Texture, v_Texcoord);\n"
     "}\n";
 
-  static std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
-                                              const std::array<float, 4>& vec) {
-    std::array<float, 4> result;
-    for (int i = 0; i < 4; ++i) {
-      result[i] = 0;
-      for (int k = 0; k < 4; ++k) {
-        result[i] += matrix.m[i][k] * vec[k];
-      }
-    }
-    return result;
-  }
-
-  static Vec4f MatrixVectorMul(const gvr::Mat4f& matrix,
-                               const Vec4f& vec) {
-    std::array<float, 4> r = MatrixVectorMul(matrix, vec.v);
-    return Vec4f(r[0], r[1], r[2], r[3]);
-  }
-
   static gvr::Mat4f PerspectiveMatrixFromView(const gvr::Rectf& fov, float z_near,
                                               float z_far) {
     gvr::Mat4f result;
@@ -221,9 +203,6 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
     floor_depth_(1024.0f),
     wm(nullptr)
 {
-  pointerWindow.window = nullptr;
-  pointerWindow.x = 0;
-  pointerWindow.y = 0;
   VRXSetCallbacks(CreateWindow, DestroyWindow, QueryPointer, QueryPointerWindow, this);
 }
 
@@ -315,33 +294,6 @@ void VRXRenderer::InitializeGl() {
   wm->Init();
 }
 
-// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-// NOTE, 32 bit only!
-static inline unsigned int roundUpPow2(unsigned int v)
-{
-  v--;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v++;
-  return v;
-}
-
-const VRXWindow *VRXRenderer::cursorWindow(const Vec4f &view_vector, Vec4f &intersection)
-{
-  for (auto w: renderWindows)
-    {
-      Vec4f window_relative_view_vector = MatrixVectorMul(w->head, view_vector);
-      if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
-        {
-          return w;
-        }
-    }
-  return nullptr;
-}
-
 static void logmatrix(const char *name, const gvr::Mat4f &m)
 {
   LOGI("%s:", name);
@@ -367,11 +319,12 @@ void VRXRenderer::DrawFrame() {
     kPredictionTimeWithoutVsyncNanos;
 
 
-  head_view_ = gvr_api_->GetHeadSpaceFromStartSpaceRotation(target_time);
+  head_view = gvr_api_->GetHeadSpaceFromStartSpaceRotation(target_time);
+  head_inverse = MatrixTranspose(head_view);
   gvr::Mat4f left_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_LEFT_EYE);
   gvr::Mat4f right_eye_matrix = gvr_api_->GetEyeFromHeadMatrix(GVR_RIGHT_EYE);
-  gvr::Mat4f left_eye_view = MatrixMul(left_eye_matrix, head_view_);
-  gvr::Mat4f right_eye_view = MatrixMul(right_eye_matrix, head_view_);
+  gvr::Mat4f left_eye_view = MatrixMul(left_eye_matrix, head_view);
+  gvr::Mat4f right_eye_view = MatrixMul(right_eye_matrix, head_view);
 
   frame.BindBuffer(0);
   glEnable(GL_DEPTH_TEST);
@@ -383,106 +336,15 @@ void VRXRenderer::DrawFrame() {
 
   // Bind back to the default framebuffer.
   frame.Unbind();
-  frame.Submit(*viewport_list_, head_view_);
+  frame.Submit(*viewport_list_, head_view);
 
   renderWindows.clear();
-  wm->windowMutex.lock();
-  for (auto wi : wm->windows)
-  {
-    VRXWindow *w = wi.second;
-    unsigned int width, height, mapped;
-    void *fb = VRXGetWindowBuffer(w->handle, &width, &height, &mapped);
-    if (mapped)
-    {
-      if (!w->mapped)
-      {
-        wm->mapWindowAndFocus(w);
-      }
-
-      if (fb != w->buffer /*or width != w->getWidth() or height != w->getHeight()*/)
-      {
-        LOGI("Window %p has changed buffer from %p to %p of size (%d, %d)",
-              w->handle, w->buffer, fb, width, height);
-
-        // TODO: free texture if there was one already
-        if (w->buffer == nullptr)
-        {
-            w->texWidth = roundUpPow2(width);
-            w->texHeight = roundUpPow2(height);
-            w->texId = CreateTexture(w->texWidth, w->texHeight);
-        }
-
-        w->buffer = fb;
-        w->setSize(width, height);
-        w->updateTexCoords();
-      }
-
-      if (w->buffer != nullptr)
-      {
-        glBindTexture(GL_TEXTURE_2D, w->texId);
-        glTexSubImage2D(GL_TEXTURE_2D, 0,
-                        0, 0,
-                        width, height,
-                        GL_RGBA, GL_UNSIGNED_BYTE,
-                        w->buffer);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        //glBindTexture(GL_TEXTURE_2D, 0);
-        renderWindows.push_back(w);
-      }
-    }
-    else    // not mapped
-    {
-      if (w->mapped)
-      {
-        wm->unmapWindow(w);
-      }
-    }
-
-  }
-  wm->windowMutex.unlock();
+  wm->prepareRenderWindows(renderWindows);
 
   for(auto w : renderWindows)
     if (moveFocusedWindow && isFocused(w))
-      w->updateTransform(head_view_);
+      w->updateTransform(head_view);
 
-
-  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
-  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
-  Vec4f isect;
-  const VRXWindow *hit = cursorWindow(mouse_vector, isect);
-  bool send_event = false;
-  if (hit)
-    {
-      VRXCursor::SetCursorMatrix(MatrixMul(hit->headInverse, {1.0, 0.0, 0.0, isect.x(),
-              0.0, 1.0, 0.0, isect.y(),
-              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE + 10.0,
-              0.0, 0.0, 0.0, 1.0}));
-
-      short int x = hit->getHalfWidth() + isect.x();
-      short int y = hit->getHalfHeight() - isect.y();
-      send_event = hit != pointerWindow.window or x != pointerWindow.x or y != pointerWindow.y;
-      pointerWindow.x = x;
-      pointerWindow.y = y;
-      pointerWindow.window = hit;
-    }
-  else
-    {
-      VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
-              0.0, 1.0, 0.0, 0.0,
-              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE * 1.5f,
-              0.0, 0.0, 0.0, 1.0}));
-
-      send_event = pointerWindow.window != nullptr;
-      pointerWindow.window = hit;
-      pointerWindow.x = pointerWindow.y = -WindowManager::DESKTOP_SIZE / 2;
-    }
-
-  if (send_event)
-    {
-      VRXMouseMotionEvent(pointerWindow.x + WindowManager::DESKTOP_SIZE / 2,
-                          pointerWindow.y + WindowManager::DESKTOP_SIZE / 2, false);
-    }
   CheckGLError("onDrawFrame");
   //usleep(100000);
 }
@@ -640,51 +502,6 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
   windowCoords[3*pointNumber+2] = point[2];
 }
 
-// TODO: This is not really thread safe. We can be sure that window list does not change
-//       under our feet, but any of the matrices used in transforms change, and in particular
-//       between transforms from eye space to world space and back.
-QueryPointerReturn VRXRenderer::handleQueryPointer(struct WindowHandle *w)
-{
-  QueryPointerReturn r;
-
-  const VRXWindow *vw = wm->windows[w];
-  gvr::Mat4f headInverse = MatrixTranspose(head_view_);
-  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
-  Vec4f window_relative_view_vector = MatrixVectorMul(vw->head, mouse_vector);
-
-  Vec4f isect;
-  if (VRXCursor::IntersectWindow(vw, window_relative_view_vector, isect))
-    {
-      r.root_x = WindowManager::DESKTOP_SIZE / 2 + vw->getHalfWidth() + isect.x();
-      r.root_y = WindowManager::DESKTOP_SIZE / 2 + vw->getHalfHeight() - isect.y();
-      r.win_x = vw->getHalfWidth() + isect.x();
-      r.win_y = vw->getHalfHeight() - isect.y();
-    }
-  else
-    {
-      r.root_x = 0;
-      r.root_y = 0;
-      r.win_x = -WindowManager::DESKTOP_SIZE / 2;
-      r.win_y = -WindowManager::DESKTOP_SIZE / 2;
-    }
-
-  return r;
-}
-
-struct WindowHandle *VRXRenderer::handleQueryPointerWindow()
-{
-  // if (not pointerWindow.window)
-  //   return nullptr;
-
-  // if (std::find_if(windows.begin(), windows.end(),
-  //                  [&](decltype(*windows.end()) p)
-  //                  {return p.second == pointerWindow.window;})
-  //     == windows.end())
-  //   return nullptr;
-
-  // return pointerWindow.window->handle;
-  return nullptr;
-}
 
 KeyMap& VRXRenderer::keyMap()
 {

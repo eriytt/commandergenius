@@ -12,7 +12,7 @@ struct VRXWindow
   static const int DEFAULT_DISTANCE = 500;
 
   struct WindowHandle *handle;
-  void *buffer;
+  Window xWindow = 0;
   gvr::Mat4f modelView;
   gvr::Mat4f head;
   gvr::Mat4f headInverse;
@@ -23,11 +23,10 @@ struct VRXWindow
   VrxWindowTexCoords texCoords;
   float scale = 1.0f;
   float distance = DEFAULT_DISTANCE;
-  Window xWindow = 0;
   bool mapped = false;
 
   VRXWindow(struct WindowHandle *w, XID wid, const VrxWindowCoords& initialPosition)
-    : handle(w), xWindow(wid), buffer(nullptr), texId(0), width(0), height(0),
+    : handle(w), xWindow(wid), texId(0), width(0), height(0),
       windowCoords(initialPosition) {}
 
   void setSize(unsigned int w, unsigned int h)
@@ -66,4 +65,7 @@ struct VRXWindow
   float getHalfHeight() const {return height / 2.0f;}
   void updateTransform(const gvr::Mat4f &head);
   void setBorderColor(Display* display, unsigned long color);
+  void allocTexture(unsigned int w, unsigned int h);
+  void updateTexture(unsigned int w, unsigned int h);
+  bool updateTexture(void);
 };

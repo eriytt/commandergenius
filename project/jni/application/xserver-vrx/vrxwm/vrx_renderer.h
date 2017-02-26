@@ -102,7 +102,8 @@ class VRXRenderer {
   
   void changeWindowSize(float sizeDiff);
   void changeWindowDistance(float distanceDiff);
-  const gvr::Mat4f &getHeadView() const {return head_view_;}
+  const gvr::Mat4f &getHeadView() const {return head_view;}
+  const gvr::Mat4f &getHeadInverse() const {return head_inverse;}
  private:
 
   /*
@@ -157,7 +158,8 @@ class VRXRenderer {
 
   std::array<float, 4> light_pos_world_space_;
   std::array<float, 4> light_pos_eye_space_;
-  gvr::Mat4f head_view_;
+  gvr::Mat4f head_view;
+  gvr::Mat4f head_inverse;
   gvr::Mat4f camera_;
   gvr::Mat4f view_;
   gvr::Mat4f modelview_projection_floor_;
@@ -177,27 +179,16 @@ class VRXRenderer {
 
   std::unique_ptr<WindowManager> wm;
 
-  QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
-  struct WindowHandle *handleQueryPointerWindow();
-
   static void CreateWindow(struct WindowHandle *pWin, XID wid, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->wm->handleCreateWindow(pWin, wid);}
   static void DestroyWindow(struct WindowHandle *pWin, void *instance)
   {reinterpret_cast<VRXRenderer*>(instance)->wm->handleDestroyWindow(pWin);}
   static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
-  {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointer(pWin);}
+  {return reinterpret_cast<VRXRenderer*>(instance)->wm->handleQueryPointer(pWin);}
   static struct WindowHandle *QueryPointerWindow(void *instance)
-  {return reinterpret_cast<VRXRenderer*>(instance)->handleQueryPointerWindow();}
+  {return reinterpret_cast<VRXRenderer*>(instance)->wm->handleQueryPointerWindow();}
 
   std::list<VRXWindow *> renderWindows;
-
-  struct VRXPointerWindow
-  {
-    const VRXWindow *window;
-    short int x, y;
-  };
-
-  VRXPointerWindow pointerWindow;
 
   KeyMap mKeyMap;
   

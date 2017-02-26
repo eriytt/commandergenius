@@ -28,6 +28,8 @@ extern "C" {
 #include "wm-util.h"
 #include "world_layout_data.h"
 #include "vrx_renderer.h"
+#include "algebra.h"
+#include "cursor.h"
 
 bool WindowManager::wm_detected_;
 std::mutex WindowManager::wm_detected_mutex_;
@@ -53,6 +55,9 @@ WindowManager::WindowManager(Display* display, const VRXRenderer *renderer)
       WM_DELETE_WINDOW(XInternAtom(display_, "WM_DELETE_WINDOW", false)),
       renderer(renderer)
 {
+  pointerWindow.window = nullptr;
+  pointerWindow.x = 0;
+  pointerWindow.y = 0;
 }
 
 WindowManager::~WindowManager() {
@@ -175,7 +180,7 @@ void WindowManager::Frame(Window w) {
   const unsigned int BORDER_WIDTH = 10;
   const unsigned long BORDER_COLOR = 0xd0d0d0;
   const unsigned long BG_COLOR = 0x0000ff;
-  LOGI("Framing window %d", w);
+  LOGI("Framing window %ld", w);
   CHECK(!clients_.count(w));
 
   // 1. Retrieve attributes of window to frame.
@@ -254,7 +259,7 @@ void WindowManager::Frame(Window w) {
       GrabModeAsync,
       GrabModeAsync);
 
-  LOGI("Framed window %d [%d]", w, frame);
+  LOGI("Framed window %ld [%ld]", w, frame);
 }
 
 void WindowManager::Unframe(Window w) {
@@ -262,6 +267,7 @@ void WindowManager::Unframe(Window w) {
 
   // We reverse the steps taken in Frame().
   const Window frame = clients_[w];
+  windows[frame]->mapped = false;
   // 1. Unmap frame.
   XUnmapWindow(display_, frame);
   // 2. Reparent client window.
@@ -277,7 +283,7 @@ void WindowManager::Unframe(Window w) {
   // 5. Drop reference to frame handle.
   clients_.erase(w);
 
-  LOGI("Unframed window %d [%d]", w, frame);
+  LOGI("Unframed window %ld [%ld]", w, frame);
 }
 
 void WindowManager::OnCreateNotify(const XCreateWindowEvent& e)
@@ -298,6 +304,33 @@ void WindowManager::OnReparentNotify(const XReparentEvent& e)
 void WindowManager::OnMapNotify(const XMapEvent& e)
 {
   LOGI("OnMapNotify");
+
+  auto it = windows.find(e.window);
+  if (it != windows.end())
+      return;
+
+  struct WindowHandle *w = idToHandle(e.window);
+  if (not w)
+    {
+      LOGE("Could not look up handle for window %ld", e.window);
+      return;
+    }
+
+  // New window
+  VrxWindowCoords windowCoords =
+    {
+      // Front face
+      -2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+      -2.0f, -2.0f,  0.0f,
+      2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+    };
+  auto vw = new VRXWindow(w, e.window, windowCoords);
+  vw->updateTransform(renderer->getHeadView());
+  vw->mapped = true;
+  windows[e.window] = vw;
 }
 
 void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
@@ -308,11 +341,11 @@ void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
   //     - A frame we just destroyed ourselves.
   //     - A pre-existing and mapped top-level window we reparented.
   if (!clients_.count(e.window)) {
-    LOGI("Ignore UnmapNotify for non-client window %d", e.window);
+    LOGI("Ignore UnmapNotify for non-client window %ld", e.window);
     return;
   }
   if (e.event == root_) {
-    LOGI("Ignore UnmapNotify for reparented pre-existing window %d", e.window);
+    LOGI("Ignore UnmapNotify for reparented pre-existing window %ld", e.window);
     return;
   }
   Unframe(e.window);
@@ -346,10 +379,10 @@ void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
   if (clients_.count(e.window)) {
     const Window frame = clients_[e.window];
     XConfigureWindow(display_, frame, e.value_mask, &changes);
-    LOGI("Resize [%d] to %s", frame, Size<int>(e.width, e.height).ToString().c_str());
+    LOGI("Resize [%ld] to %s", frame, Size<int>(e.width, e.height).ToString().c_str());
   }
   XConfigureWindow(display_, e.window, e.value_mask, &changes);
-  LOGI("Resize %d to %s", e.window, Size<int>(e.width, e.height).ToString().c_str());
+  LOGI("Resize %ld to %s", e.window, Size<int>(e.width, e.height).ToString().c_str());
 }
 
 void WindowManager::OnButtonPress(const XButtonEvent& e) {
@@ -437,7 +470,7 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
                    supported_protocols + num_supported_protocols,
                    WM_DELETE_WINDOW) !=
          supported_protocols + num_supported_protocols)) {
-      LOGI("Gracefully deleting window %d", e.window);
+      LOGI("Gracefully deleting window %ld", e.window);
       // 1. Construct message.
       XEvent msg;
       memset(&msg, 0, sizeof(msg));
@@ -449,7 +482,7 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
       // 2. Send message to window to be closed.
       CHECK(XSendEvent(display_, e.window, false, 0, &msg));
     } else {
-      LOGI("Killing window %d", e.window);
+      LOGI("Killing window %ld", e.window);
       XKillClient(display_, e.window);
     }
   } else if ((e.state & Mod1Mask) &&
@@ -496,53 +529,49 @@ int WindowManager::OnWMDetected(Display* display, XErrorEvent* e) {
   return 0;
 }
 
-void WindowManager::handleCreateWindow(struct WindowHandle *w, XID wid)
+struct WindowHandle *WindowManager::idToHandle(XID wid)
 {
   std::lock_guard<std::mutex> lock(windowMutex);
-  auto it = windows.find(w);
-  if (it != windows.end())
-  {
-    return;
-  }
+  auto it = whandles.find(wid);
+  if (it == whandles.end())
+    return nullptr;
+  return (*it).second;
+}
 
-  VrxWindowCoords windowCoords =
-    {
-      // Front face
-      -2.0f,  2.0f,  0.0f,
-      -2.0f, -2.0f,  0.0f,
-      2.0f,  2.0f,  0.0f,
-      -2.0f, -2.0f,  0.0f,
-      2.0f, -2.0f,  0.0f,
-      2.0f,  2.0f,  0.0f,
-    };
-  auto vw = new VRXWindow(w, wid, windowCoords);
-  vw->updateTransform(renderer->getHeadView());
-
-  windows[w] = vw;
-
-  LOGI("Create window: size before new window: %d", windows.size());
-  LOGW("New window: %p", w);
+void WindowManager::handleCreateWindow(struct WindowHandle *w, XID wid)
+{
+  LOGI("Adding translation %ld -> %p", wid, w);
+  std::lock_guard<std::mutex> lock(windowMutex);
+  whandles[wid] = w;
 }
 
 void WindowManager::handleDestroyWindow(struct WindowHandle *w)
 {
-  LOGI("Destroy window: %p", w);
   std::lock_guard<std::mutex> lock(windowMutex);
-  LOGI("Destroy window: size before destroy: %d", windows.size());
-  auto it = windows.find(w);
-  if (it == windows.end())
-  {
-    LOGE("We don't know anything about this window!");
+  auto it = std::find_if(whandles.begin(), whandles.end(),
+                         [&](decltype(*whandles.end()) wh)
+                         {return wh.second == w;});
+  if (it == whandles.end())
     return;
-  }
 
-  VRXWindow *win = it->second;
-  //unmapWindow(it->second);  // In case it was not unmapped previously
-  focusedWindows.remove(win);
+  LOGI("Deleting translation for %ld -> %p", (*it).first, w);
+  whandles.erase(it);
+}
 
-  delete it->second;
-  windows.erase(it);
-  LOGI("Destroy window: size after destroy: %d", windows.size());
+struct WindowHandle *WindowManager::handleQueryPointerWindow()
+{
+  const VRXWindow *vw = pointerWindow.window;
+  if (not vw)
+    return nullptr;
+
+  // No need to lock the map, the server thread (this) is the only thread that
+  // changes the map.
+  // It is safe to dereference window without synchronization, it will not disappear
+  // while we are executing server code
+  if (windows.find(vw->xWindow) == windows.end())
+    return nullptr;
+
+  return vw->handle;
 }
 
 void WindowManager::focusMRUWindow(uint16_t num)
@@ -576,8 +605,6 @@ void WindowManager::focusMRUWindow(uint16_t num)
 
 void WindowManager::mapWindowAndFocus(VRXWindow * win)
 {
-  win->mapped = true;
-
   if (focusedWindows.size() != 0)
   {
     focusedWindows.front()->setBorderColor(display_, UNFOCUSED_BORDER_COLOR);
@@ -591,7 +618,6 @@ void WindowManager::mapWindowAndFocus(VRXWindow * win)
 
 void WindowManager::unmapWindow(VRXWindow * win)
 {
-  win->mapped = false;
   LOGI("Window unmapped: %p", win->handle);
   focusedWindows.remove(win);
   focusMRUWindow(0);
@@ -606,7 +632,7 @@ bool VRXRenderer::isFocused(const VRXWindow * win)
 
 void WindowManager::setFocus(Window frame)
 {
-  LOGI("WindowManager::setFocus frame %d", frame);
+  LOGI("WindowManager::setFocus frame %ld", frame);
   Window win = 0;
   for (auto& client : clients_){
     if (client.second == frame ){
@@ -616,12 +642,138 @@ void WindowManager::setFocus(Window frame)
   }
 
   if (win == 0) {
-    LOGE("WindowManager::setFocus frame not found: %d", frame);
+    LOGE("WindowManager::setFocus frame not found: %ld", frame);
     return;
   }
 
   XRaiseWindow(display_, frame);
   XSetInputFocus(display_, win, RevertToPointerRoot, CurrentTime);
 
-  LOGI("WindowManager::setFocus frame %d => window %d", frame, win);
+  LOGI("WindowManager::setFocus frame %ld => window %ld", frame, win);
+}
+
+void WindowManager::prepareRenderWindows(std::list<struct VRXWindow *> &renderWindows)
+{
+  for (auto wi : windows)
+    {
+      VRXWindow *w = wi.second;
+      if (not w->mapped)
+        continue;
+
+      // 1. Lock translation
+      windowMutex.lock();
+
+      // 2. Verify translation is still accurate
+      auto it = whandles.find(w->xWindow);
+
+      if (it == whandles.end() or (*it).second != w->handle)
+        {
+          // TODO: this window must be gone, it should be deleted!
+          windowMutex.unlock();
+          continue;
+        }
+
+      bool valid = w->updateTexture();
+      windowMutex.unlock();
+
+      if (valid)
+        renderWindows.push_back(w);
+    }
+
+  updateCursorWindow(renderWindows);
+}
+
+void WindowManager::updateCursorWindow(std::list<struct VRXWindow *> &renderWindows)
+{
+
+  Vec4f intersection;
+  const VRXWindow *hit = nullptr;
+  bool send_event = false;
+  const gvr::Mat4f &headInverse = renderer->getHeadInverse();
+  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+
+  for (auto w: renderWindows)
+    {
+      Vec4f window_relative_view_vector = MatrixVectorMul(w->head, mouse_vector);
+      if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
+        {
+          hit =  w;
+          break;
+        }
+    }
+
+  if (hit)
+    {
+      VRXCursor::SetCursorMatrix(MatrixMul(hit->headInverse, {1.0, 0.0, 0.0, intersection.x(),
+              0.0, 1.0, 0.0, intersection.y(),
+              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE + 10.0,
+              0.0, 0.0, 0.0, 1.0}));
+
+      short int x = hit->getHalfWidth() + intersection.x();
+      short int y = hit->getHalfHeight() - intersection.y();
+      send_event = hit != pointerWindow.window or x != pointerWindow.x or y != pointerWindow.y;
+      pointerWindow.x = x;
+      pointerWindow.y = y;
+      pointerWindow.window = hit;
+    }
+  else
+    {
+      VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, -VRXWindow::DEFAULT_DISTANCE * 1.5f,
+              0.0, 0.0, 0.0, 1.0}));
+
+      send_event = pointerWindow.window != nullptr;
+      pointerWindow.window = hit;
+      pointerWindow.x = pointerWindow.y = -DESKTOP_SIZE / 2;
+    }
+
+  if (send_event)
+    {
+      VRXMouseMotionEvent(pointerWindow.x + DESKTOP_SIZE / 2,
+                          pointerWindow.y + DESKTOP_SIZE / 2, false);
+    }
+}
+
+// TODO: This is not really thread safe. We can be sure that window list does not change
+//       under our feet, but any of the matrices used in transforms change, and in particular
+//       between transforms from eye space to world space and back.
+QueryPointerReturn WindowManager::handleQueryPointer(struct WindowHandle *w)
+{
+  QueryPointerReturn r;
+
+  auto it = std::find_if(windows.begin(), windows.end(),
+                         [&](decltype(*windows.end()) win)
+                         {return win.second->handle == w;});
+  if (it == windows.end())
+    {
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -DESKTOP_SIZE / 2;
+      r.win_y = -DESKTOP_SIZE / 2;
+      return r;
+    }
+
+  const VRXWindow *vw = (*it).second; // wm->windows[w];
+  const gvr::Mat4f &headInverse = renderer->getHeadInverse(); // MatrixTranspose(head_view);
+  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+  Vec4f window_relative_view_vector = MatrixVectorMul(vw->head, mouse_vector);
+
+  Vec4f isect;
+  if (VRXCursor::IntersectWindow(vw, window_relative_view_vector, isect))
+    {
+      r.root_x = WindowManager::DESKTOP_SIZE / 2 + vw->getHalfWidth() + isect.x();
+      r.root_y = WindowManager::DESKTOP_SIZE / 2 + vw->getHalfHeight() - isect.y();
+      r.win_x = vw->getHalfWidth() + isect.x();
+      r.win_y = vw->getHalfHeight() - isect.y();
+    }
+  else
+    {
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -WindowManager::DESKTOP_SIZE / 2;
+      r.win_y = -WindowManager::DESKTOP_SIZE / 2;
+    }
+
+  return r;
 }
