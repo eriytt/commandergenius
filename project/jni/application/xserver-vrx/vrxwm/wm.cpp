@@ -742,11 +742,12 @@ QueryPointerReturn WindowManager::handleQueryPointer(struct WindowHandle *w)
 {
   QueryPointerReturn r;
 
-  auto it = std::find_if(windows.begin(), windows.end(),
-                         [&](decltype(*windows.end()) win)
-                         {return win.second->handle == w;});
-  if (it == windows.end())
+  auto it = std::find_if(whandles.begin(), whandles.end(),
+                         [&](decltype(*whandles.end()) win)
+                         {return win.second == w;});
+  if (it == whandles.end())
     {
+      // We don't know anything about this window, might be the root window
       r.root_x = 0;
       r.root_y = 0;
       r.win_x = -DESKTOP_SIZE / 2;
@@ -754,8 +755,20 @@ QueryPointerReturn WindowManager::handleQueryPointer(struct WindowHandle *w)
       return r;
     }
 
-  const VRXWindow *vw = (*it).second; // wm->windows[w];
-  const gvr::Mat4f &headInverse = renderer->getHeadInverse(); // MatrixTranspose(head_view);
+  XID wid = (*it).first;
+  if (not windows.count(wid))
+    {
+      // This window may be mapped by the server, but we have not gotten
+      // around to do it yet
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -DESKTOP_SIZE / 2;
+      r.win_y = -DESKTOP_SIZE / 2;
+      return r;
+    }
+
+  const VRXWindow *vw = windows[wid];
+  const gvr::Mat4f &headInverse = renderer->getHeadInverse();
   Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
   Vec4f window_relative_view_vector = MatrixVectorMul(vw->head, mouse_vector);
 
