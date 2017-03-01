@@ -137,8 +137,8 @@ public:
   // TODO: should probably not be public
   struct WindowHandle *idToHandle(XID wid);
   void focusMRUWindow(uint16_t num);
-  void mapWindowAndFocus(VRXWindow * win);
-  void unmapWindow(VRXWindow * win);
+  void focus(VRXWindow * win);
+  void unfocus(VRXWindow * win);
   void prepareRenderWindows(std::list<struct VRXWindow *> &renderWindows);
   struct WindowHandle *handleQueryPointerWindow();
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);

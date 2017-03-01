@@ -268,6 +268,7 @@ void WindowManager::Unframe(Window w) {
   // We reverse the steps taken in Frame().
   const Window frame = clients_[w];
   windows[frame]->mapped = false;
+  unfocus(windows[frame]);
   // 1. Unmap frame.
   XUnmapWindow(display_, frame);
   // 2. Reparent client window.
@@ -307,7 +308,10 @@ void WindowManager::OnMapNotify(const XMapEvent& e)
 
   auto it = windows.find(e.window);
   if (it != windows.end())
+    {
+      focus((*it).second);
       return;
+    }
 
   struct WindowHandle *w = idToHandle(e.window);
   if (not w)
@@ -331,6 +335,7 @@ void WindowManager::OnMapNotify(const XMapEvent& e)
   vw->updateTransform(renderer->getHeadView());
   vw->mapped = true;
   windows[e.window] = vw;
+  focus(vw);
 }
 
 void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
@@ -603,7 +608,7 @@ void WindowManager::focusMRUWindow(uint16_t num)
   LOGI("Window focused: %p", tempWinPtr->handle);
 }
 
-void WindowManager::mapWindowAndFocus(VRXWindow * win)
+void WindowManager::focus(VRXWindow * win)
 {
   if (focusedWindows.size() != 0)
   {
@@ -613,10 +618,10 @@ void WindowManager::mapWindowAndFocus(VRXWindow * win)
   win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
   setFocus(focusedWindows.front()->xWindow);
 
-  LOGI("Window mapped + focused: %p", win->handle);
+  LOGI("Window focused: %p", win->handle);
 }
 
-void WindowManager::unmapWindow(VRXWindow * win)
+void WindowManager::unfocus(VRXWindow * win)
 {
   LOGI("Window unmapped: %p", win->handle);
   focusedWindows.remove(win);
