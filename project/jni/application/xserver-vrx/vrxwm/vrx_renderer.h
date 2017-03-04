@@ -130,9 +130,6 @@ class VRXRenderer {
    */
   void DrawFloor();
 
-  bool isFocused(const VRXWindow * win);
-  
-
   const VRXWindow *cursorWindow(const Vec4f &view_vector, Vec4f &intersection);
 
   std::unique_ptr<gvr::GvrApi> gvr_api_;

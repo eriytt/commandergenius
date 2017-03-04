@@ -628,11 +628,11 @@ void WindowManager::unfocus(VRXWindow * win)
   focusMRUWindow(0);
 }
 
-bool VRXRenderer::isFocused(const VRXWindow * win)
+bool WindowManager::isFocused(const VRXWindow * win)
 {
-  if (wm->focusedWindows.size() == 0){ return false; }
+  if (focusedWindows.size() == 0){ return false; }
 
-  return win==wm->focusedWindows.front();
+  return win == focusedWindows.front();
 }
 
 void WindowManager::setFocus(Window frame)

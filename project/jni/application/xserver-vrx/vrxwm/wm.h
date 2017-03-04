@@ -143,6 +143,7 @@ public:
   struct WindowHandle *handleQueryPointerWindow();
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
   void updateCursorWindow(std::list<struct VRXWindow *> &renderWindows);
+  bool isFocused(const VRXWindow * win);
 };
 
 #endif

@@ -342,7 +342,7 @@ void VRXRenderer::DrawFrame() {
   wm->prepareRenderWindows(renderWindows);
 
   for(auto w : renderWindows)
-    if (moveFocusedWindow && isFocused(w))
+    if (moveFocusedWindow && wm->isFocused(w))
       w->updateTransform(head_view);
 
   CheckGLError("onDrawFrame");
