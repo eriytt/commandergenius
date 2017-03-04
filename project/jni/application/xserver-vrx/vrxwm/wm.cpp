@@ -688,6 +688,26 @@ void WindowManager::prepareRenderWindows(std::list<struct VRXWindow *> &renderWi
   updateCursorWindow(renderWindows);
 }
 
+void WindowManager::changeWindowSize(float sizeDiff)
+{
+  if (focusedWindows.size() == 0) return;
+  VRXWindow *w = focusedWindows.front();
+  if (w->scale + sizeDiff <= 0.0) return;
+
+  w->scale += sizeDiff;
+  w->setSize(w->width, w->height);
+}
+
+void WindowManager::changeWindowDistance(float distanceDiff)
+{
+  if (focusedWindows.size() == 0) return;
+  VRXWindow *w = focusedWindows.front();
+  if (w->distance + distanceDiff <= 100.0) return;
+
+  w->distance += distanceDiff;
+  w->updateTransform(w->head);
+}
+
 void WindowManager::updateCursorWindow(std::list<struct VRXWindow *> &renderWindows)
 {
 

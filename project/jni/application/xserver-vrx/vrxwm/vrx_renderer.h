@@ -99,9 +99,9 @@ class VRXRenderer {
   void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
   
   void toggleMoveFocusedWindow();
+
+  WindowManager *getWM() {return wm.get();}
   
-  void changeWindowSize(float sizeDiff);
-  void changeWindowDistance(float distanceDiff);
   const gvr::Mat4f &getHeadView() const {return head_view;}
   const gvr::Mat4f &getHeadInverse() const {return head_inverse;}
  private:

@@ -513,23 +513,3 @@ void VRXRenderer::toggleMoveFocusedWindow()
   moveFocusedWindow = !moveFocusedWindow;
   LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
 };
-
-void VRXRenderer::changeWindowSize(float sizeDiff)
-{
-  if (wm->focusedWindows.size() == 0) return;
-  VRXWindow *w = wm->focusedWindows.front();
-  if (w->scale + sizeDiff <= 0.0) return;
-
-  w->scale += sizeDiff;
-  w->setSize(w->width, w->height);
-}
-
-void VRXRenderer::changeWindowDistance(float distanceDiff)
-{
-  if (wm->focusedWindows.size() == 0) return;
-  VRXWindow *w = wm->focusedWindows.front();
-  if (w->distance + distanceDiff <= kZNear) return;
-    
-  w->distance += distanceDiff;
-  w->updateTransform(w->head);
-}

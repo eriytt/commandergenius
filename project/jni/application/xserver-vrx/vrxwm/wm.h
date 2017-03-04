@@ -124,18 +124,18 @@ class WindowManager {
   VRXPointerWindow pointerWindow;
 
 
-public:
   std::map<XID, VRXWindow *> windows;
   std::list<VRXWindow *> focusedWindows;
 
   std::mutex windowMutex;
   std::map<XID, struct WindowHandle *> whandles;
 
+  struct WindowHandle *idToHandle(XID wid);
+
+public:
   void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
 
-  // TODO: should probably not be public
-  struct WindowHandle *idToHandle(XID wid);
   void focusMRUWindow(uint16_t num);
   void focus(VRXWindow * win);
   void unfocus(VRXWindow * win);
@@ -144,6 +144,9 @@ public:
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
   void updateCursorWindow(std::list<struct VRXWindow *> &renderWindows);
   bool isFocused(const VRXWindow * win);
+  void changeWindowSize(float sizeDiff);
+  void changeWindowDistance(float distanceDiff);
+
 };
 
 #endif

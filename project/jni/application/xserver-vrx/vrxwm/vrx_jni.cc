@@ -127,20 +127,20 @@ JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_poin
 
   if (scancode==KEY_B)
   {
-    vrxRenderer->changeWindowSize(0.3);
+    vrxRenderer->getWM()->changeWindowSize(0.3);
   }
   if (scancode==KEY_S)
   {
-    vrxRenderer->changeWindowSize(-0.3);
+    vrxRenderer->getWM()->changeWindowSize(-0.3);
   }
   
   if (scancode==KEY_C)
   {
-    vrxRenderer->changeWindowDistance(-30.0);
+    vrxRenderer->getWM()->changeWindowDistance(-30.0);
   }
   if (scancode==KEY_F)
   {
-    vrxRenderer->changeWindowDistance(30.0);
+    vrxRenderer->getWM()->changeWindowDistance(30.0);
   }
 
   if (scancode==KEY_M)
