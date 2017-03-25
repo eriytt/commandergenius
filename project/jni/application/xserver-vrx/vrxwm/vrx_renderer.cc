@@ -203,7 +203,6 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
     floor_depth_(1024.0f),
     wm(nullptr)
 {
-  VRXSetCallbacks(CreateWindow, DestroyWindow, QueryPointer, QueryPointerWindow, this);
 }
 
 VRXRenderer::~VRXRenderer() {
@@ -339,11 +338,11 @@ void VRXRenderer::DrawFrame() {
   frame.Submit(*viewport_list_, head_view);
 
   renderWindows.clear();
-  wm->prepareRenderWindows(renderWindows);
+  wm->prepareRenderWindows(renderWindows, head_inverse);
 
   for(auto w : renderWindows)
     if (moveFocusedWindow && wm->isFocused(w))
-      w->updateTransform(head_view);
+      w->updateTransform(head_view, head_inverse);
 
   CheckGLError("onDrawFrame");
   //usleep(100000);
@@ -420,7 +419,7 @@ void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
   VRXCursor::Draw(mvp);
 }
 
-void VRXRenderer::DrawWindow(VRXWindow *win, const gvr::Mat4f &mvp)
+void VRXRenderer::DrawWindow(WmWindow *win, const gvr::Mat4f &mvp)
 {
   glUseProgram(windowProgram);
 

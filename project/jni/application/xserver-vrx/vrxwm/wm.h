@@ -38,6 +38,43 @@ extern "C" {
 #include "wm-util.h"
 #include "vrxwindow.hh"
 
+class ServerContext
+{
+public:
+  ServerContext() {VRXSetCallbacks(CreateWindow,
+                                   DestroyWindow,
+                                   QueryPointer,
+                                   QueryPointerWindow,
+                                   this);}
+private:
+  std::mutex mtx;
+  std::map<Window, ServerWindow *> windowsById;
+  std::map<struct WindowHandle *, ServerWindow *> windowsByHandle;
+  gvr::Mat4f head_inverse;
+  ServerWindow *currentPointerWindow = nullptr;
+
+  void handleCreateWindow(struct WindowHandle *pWin, XID wid);
+  void handleDestroyWindow(struct WindowHandle *pWin);
+  struct WindowHandle *handleQueryPointerWindow();
+  QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
+
+  static void CreateWindow(struct WindowHandle *pWin, XID wid, void *instance)
+  {reinterpret_cast<ServerContext*>(instance)->handleCreateWindow(pWin, wid);}
+  static void DestroyWindow(struct WindowHandle *pWin, void *instance)
+  {reinterpret_cast<ServerContext*>(instance)->handleDestroyWindow(pWin);}
+  static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
+  {return reinterpret_cast<ServerContext*>(instance)->handleQueryPointer(pWin);}
+  static struct WindowHandle *QueryPointerWindow(void *instance)
+  {return reinterpret_cast<ServerContext*>(instance)->handleQueryPointerWindow();}
+
+
+public:
+  void setHeadInverse(const gvr::Mat4f &hi);
+  bool connectWindows(WmWindow *ww);
+  bool updateTexture(WmWindow *ww);
+  void setPointerWindow(Window id);
+};
+
 // Implementation of a window manager for an X screen.
 class WindowManager {
  public:
@@ -57,6 +94,8 @@ class WindowManager {
   void setFocus(Window w);
 
  private:
+  ServerContext sctx;
+  
   // Invoked internally by Create().
   WindowManager(Display* display, const class VRXRenderer *renderer);
   // Frames a top-level window.
@@ -115,35 +154,29 @@ class WindowManager {
 
   const class VRXRenderer *renderer;
 
+  std::map<Window, WmWindow *> windows;
+  std::list<WmWindow *> focusedWindows;
+
   struct VRXPointerWindow
   {
-    const VRXWindow *window;
+    const WmWindow *window;
     short int x, y;
   };
 
   VRXPointerWindow pointerWindow;
-
-
-  std::map<XID, VRXWindow *> windows;
-  std::list<VRXWindow *> focusedWindows;
-
-  std::mutex windowMutex;
-  std::map<XID, struct WindowHandle *> whandles;
-
-  struct WindowHandle *idToHandle(XID wid);
 
 public:
   void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
 
   void focusMRUWindow(uint16_t num);
-  void focus(VRXWindow * win);
-  void unfocus(VRXWindow * win);
-  void prepareRenderWindows(std::list<struct VRXWindow *> &renderWindows);
+  void focus(WmWindow * win);
+  void unfocus(WmWindow * win);
+  void prepareRenderWindows(std::list<WmWindow *> &renderWindows, const gvr::Mat4f &headInverse);
   struct WindowHandle *handleQueryPointerWindow();
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
-  void updateCursorWindow(std::list<struct VRXWindow *> &renderWindows);
-  bool isFocused(const VRXWindow * win);
+  void updateCursorWindow(std::list<WmWindow *> &renderWindows);
+  bool isFocused(const WmWindow * win);
   void changeWindowSize(float sizeDiff);
   void changeWindowDistance(float distanceDiff);
 

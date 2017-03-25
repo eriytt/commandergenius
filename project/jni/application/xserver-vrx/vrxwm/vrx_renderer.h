@@ -96,7 +96,7 @@ class VRXRenderer {
 
   KeyMap& keyMap();
   
-  void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
+  //void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
   
   void toggleMoveFocusedWindow();
 
@@ -119,7 +119,7 @@ class VRXRenderer {
   void DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
                const gvr::BufferViewport& params);
 
-  void DrawWindow(VRXWindow *win, const gvr::Mat4f &perspective);
+  void DrawWindow(WmWindow *win, const gvr::Mat4f &perspective);
 
   /**
    * Draw the floor.
@@ -130,7 +130,7 @@ class VRXRenderer {
    */
   void DrawFloor();
 
-  const VRXWindow *cursorWindow(const Vec4f &view_vector, Vec4f &intersection);
+  const WmWindow *cursorWindow(const Vec4f &view_vector, Vec4f &intersection);
 
   std::unique_ptr<gvr::GvrApi> gvr_api_;
   std::unique_ptr<gvr::BufferViewportList> viewport_list_;
@@ -176,16 +176,7 @@ class VRXRenderer {
 
   std::unique_ptr<WindowManager> wm;
 
-  static void CreateWindow(struct WindowHandle *pWin, XID wid, void *instance)
-  {reinterpret_cast<VRXRenderer*>(instance)->wm->handleCreateWindow(pWin, wid);}
-  static void DestroyWindow(struct WindowHandle *pWin, void *instance)
-  {reinterpret_cast<VRXRenderer*>(instance)->wm->handleDestroyWindow(pWin);}
-  static QueryPointerReturn QueryPointer(struct WindowHandle *pWin, void *instance)
-  {return reinterpret_cast<VRXRenderer*>(instance)->wm->handleQueryPointer(pWin);}
-  static struct WindowHandle *QueryPointerWindow(void *instance)
-  {return reinterpret_cast<VRXRenderer*>(instance)->wm->handleQueryPointerWindow();}
-
-  std::list<VRXWindow *> renderWindows;
+  std::list<WmWindow *> renderWindows;
 
   KeyMap mKeyMap;
   

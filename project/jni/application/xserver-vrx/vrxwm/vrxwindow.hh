@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 
 #include <X11/Xlib.h>
 
@@ -7,65 +8,85 @@
 
 #include "vrx_types.h"
 
-struct VRXWindow
+class WmWindow;
+
+class ServerWindow
 {
+private:
+  struct WindowHandle *handle;
+  Window id;
+  std::mutex mtx;
+  gvr::Mat4f head;
+  unsigned int width = 0, height = 0;  
+
+public:
+  WmWindow *wmwin = nullptr;
+
+public:
+  ServerWindow(struct WindowHandle *handle, Window id)
+    : handle(handle), id (id) {}
+  ~ServerWindow();
+  struct WindowHandle * getHandle() const {return handle;}
+  Window getId() const {return id;}
+  void setHead(const gvr::Mat4f &newhead);
+  void setSize(unsigned int h, unsigned int w);
+  gvr::Mat4f getCollisionParameters(unsigned int *h, unsigned int *w);
+};
+
+class WmWindow
+{
+public:
   static const int DEFAULT_DISTANCE = 500;
 
-  struct WindowHandle *handle;
-  Window xWindow = 0;
-  gvr::Mat4f modelView;
-  gvr::Mat4f head;
-  gvr::Mat4f headInverse;
-  unsigned int texId;
-  unsigned int width, height;
-  unsigned int texWidth, texHeight;
+private:
+  Window id;
+  bool mapped = false;
+  bool gone = false;
+  friend class ServerContext;
+
+public:
+  void setGone() {gone = true; srvwin = nullptr;}
+
+public:
+  ServerWindow *srvwin = nullptr;
   VrxWindowCoords windowCoords;
   VrxWindowTexCoords texCoords;
+  unsigned int texId = 0;
+  gvr::Mat4f modelView;
+
+private:
+  unsigned int width = 0, height = 0;
+  unsigned int texWidth = 0, texHeight = 0;
   float scale = 1.0f;
   float distance = DEFAULT_DISTANCE;
-  bool mapped = false;
+  gvr::Mat4f head;
+  gvr::Mat4f headInverse;
 
-  VRXWindow(struct WindowHandle *w, XID wid, const VrxWindowCoords& initialPosition)
-    : handle(w), xWindow(wid), texId(0), width(0), height(0),
-      windowCoords(initialPosition) {}
+  void allocTexture(unsigned int w, unsigned int h);
 
-  void setSize(unsigned int w, unsigned int h)
-  {
-    width = w;
-    height = h;
-    int ws = scale * w;
-    int hs = scale * h;
-    windowCoords = {
-      -ws / 2.0f,  hs / 2.0f,  0.0f,
-      -ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f,  hs / 2.0f,  0.0f,
-      -ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f, -hs / 2.0f,  0.0f,
-       ws / 2.0f,  hs / 2.0f,  0.0f,
-    };
-  }
+public:
+  WmWindow(Window id);
+  void setMapped(bool m) {mapped = m;}
+  bool getMapped() const {return mapped;}
+  bool isGone() const {return gone;}
 
-  void updateTexCoords()
-  {
-    float w = width / static_cast<float>(texWidth);
-    float h = height / static_cast<float>(texHeight);
-    texCoords = {
-      0.0f, 0.0f, // v0
-      0.0f,    h, // v1
-         w, 0.0f, // v2
-      0.0f,    h, // v1
-         w,    h, // v3
-         w, 0.0f, // v2
-    };
-  }
+  Window getId() const {return id;}
+  void updateTransform(const gvr::Mat4f &newhead, const gvr::Mat4f &newHeadInverse);
+  void updateTexture(unsigned int w, unsigned int h);
+  bool updateTexture(struct WindowHandle *handle);
 
+  void setBorderColor(Display* display, unsigned long color);
   unsigned int getWidth() const {return width;}
   unsigned int getHeight() const {return height;}
+  float getScale() const {return scale;}
+  void addScale(float diff) {scale += diff; setSize(width, height);}
+  float getDistance() const {return distance;}
+  void addDistance(float diff) {distance += diff; updateTransform(head, headInverse);}
+  const gvr::Mat4f &getHead() const {return head;};
+  const gvr::Mat4f &getHeadInverse() const {return headInverse;};  
+
+  void updateTexCoords();
+  void setSize(unsigned int w, unsigned int h);
   float getHalfWidth() const {return width / 2.0f;}
   float getHalfHeight() const {return height / 2.0f;}
-  void updateTransform(const gvr::Mat4f &head);
-  void setBorderColor(Display* display, unsigned long color);
-  void allocTexture(unsigned int w, unsigned int h);
-  void updateTexture(unsigned int w, unsigned int h);
-  bool updateTexture(void);
 };

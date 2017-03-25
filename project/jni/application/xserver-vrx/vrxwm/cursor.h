@@ -6,7 +6,8 @@
 
 #include "algebra.h"
 
-struct VRXWindow;
+class WmWindow;
+class ServerWindow;
 
 class VRXCursor
 {
@@ -34,5 +35,7 @@ public:
   static void SetCursorPosition(const Vec4f &newpos);
   static void SetCursorMatrix(const gvr::Mat4f &newmat);
   static void Draw(const gvr::Mat4f &perspective);
-  static bool IntersectWindow(const VRXWindow *window, const Vec4f &direction, Vec4f &isect);
+  static bool IntersectWindow(const WmWindow *window, const Vec4f &direction, Vec4f &isect);
+  static bool IntersectWindow(unsigned int halfWidth, unsigned int halfHeight,
+                              const Vec4f &direction, Vec4f &isect);
 };
