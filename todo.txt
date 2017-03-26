@@ -1,8 +1,6 @@
 Disable focus follows mouse
  - toggle focus with kbd
  - hotkey for "focus win currently under pointer"
-
-Move code regarding focus to WM???
  
 Focus nearest window under pointer, instead of first match
 
@@ -10,3 +8,14 @@ Move focused window slightly closer to avoid rounding errors with other windows 
 
 
 Mouse click by magnetic sensor ???
+
+WmWindow lifecycle
+- delete window when client really is dead
+- free texture
+
+Disable stacktrace, seems like there could be an exploit if left on
+
+Control log level
+
+Fix window focus cycling
+- Suggest begin/end refocus
