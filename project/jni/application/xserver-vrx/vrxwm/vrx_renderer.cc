@@ -200,8 +200,7 @@ VRXRenderer::VRXRenderer(gvr_context* gvr_context)
     floor_normals_(nullptr),
     light_pos_world_space_({0.0f, 200.0f, 0.0f, 1.0f}),
     object_distance_(3.5f),
-    floor_depth_(1024.0f),
-    wm(nullptr)
+    floor_depth_(1024.0f)
 {
 }
 
@@ -285,12 +284,6 @@ void VRXRenderer::InitializeGl() {
     LOGE("Failed to initialize cursor");
 
   LOGI("OpenGL initialized");
-
-  wm = WindowManager::Create(this, ":0");
-  // TODO: bail if this happens
-  if (!wm)
-    LOGE("Failed to initialize window manager");
-  wm->Init();
 }
 
 static void logmatrix(const char *name, const gvr::Mat4f &m)
@@ -304,9 +297,7 @@ static void logmatrix(const char *name, const gvr::Mat4f &m)
 
 #include <unistd.h>
 #define M_PI_8 (M_PI_4 / 2.0)
-void VRXRenderer::DrawFrame() {
-  wm->Run();
-
+void VRXRenderer::DrawFrame(const std::vector<WmWindow*> &renderWindows) {
   PrepareFramebuffer();
 
   viewport_list_->SetToRecommendedBufferViewports();
@@ -329,20 +320,13 @@ void VRXRenderer::DrawFrame() {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_SCISSOR_TEST);
   viewport_list_->GetBufferViewport(0, &scratch_viewport_);
-  DrawEye(GVR_LEFT_EYE, left_eye_view, scratch_viewport_);
+  DrawEye(GVR_LEFT_EYE, left_eye_view, scratch_viewport_, renderWindows);
   viewport_list_->GetBufferViewport(1, &scratch_viewport_);
-  DrawEye(GVR_RIGHT_EYE, right_eye_view, scratch_viewport_);
+  DrawEye(GVR_RIGHT_EYE, right_eye_view, scratch_viewport_, renderWindows);
 
   // Bind back to the default framebuffer.
   frame.Unbind();
   frame.Submit(*viewport_list_, head_view);
-
-  renderWindows.clear();
-  wm->prepareRenderWindows(renderWindows, head_inverse);
-
-  for(auto w : renderWindows)
-    if (moveFocusedWindow && wm->isFocused(w))
-      w->updateTransform(head_view, head_inverse);
 
   CheckGLError("onDrawFrame");
   //usleep(100000);
@@ -384,7 +368,8 @@ void VRXRenderer::OnResume() {
  * @param eye The eye to render. Includes all required transformations.
  */
 void VRXRenderer::DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-                          const gvr::BufferViewport& params) {
+                          const gvr::BufferViewport& params,
+                          const std::vector<WmWindow*> &renderWindows) {
   const gvr::Recti pixel_rect =
     CalculatePixelSpaceRect(render_size_, params.GetSourceUv());
 
@@ -500,15 +485,3 @@ void setPointArray( VrxWindowCoords& windowCoords, std::array<float, 4> point, u
   windowCoords[3*pointNumber+1] = point[1];
   windowCoords[3*pointNumber+2] = point[2];
 }
-
-
-KeyMap& VRXRenderer::keyMap()
-{
-  return mKeyMap;
-}
-  
-void VRXRenderer::toggleMoveFocusedWindow()
-{
-  moveFocusedWindow = !moveFocusedWindow;
-  LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
-};

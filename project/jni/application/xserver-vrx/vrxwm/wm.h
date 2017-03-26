@@ -31,6 +31,8 @@ extern "C" {
 #include <map>
 #include <list>
 
+#include <linux/input.h>
+
 #include "vr/gvr/capi/include/gvr.h"
 #include "vr/gvr/capi/include/gvr_types.h"
 
@@ -75,6 +77,26 @@ public:
   void setPointerWindow(Window id);
 };
 
+class KeyMap
+{
+public:
+  int commandKey = KEY_A;
+  bool isCommandMode = false;
+  void setKey(int code, uint8_t isDown)
+  {
+    if (code < 256) keys[code] = isDown;
+  }
+
+  uint8_t getKey(int code)
+  {
+    if (code < 256) return keys[code];
+
+    return 0;
+  }
+private:
+  uint8_t keys[256];
+};
+
 // Implementation of a window manager for an X screen.
 class WindowManager {
  public:
@@ -83,8 +105,8 @@ class WindowManager {
   // Creates a WindowManager instance for the X display/screen specified by the
   // argument string, or if unspecified, the DISPLAY environment variable. On
   // failure, returns nullptr.
-  static std::unique_ptr<WindowManager>
-  Create(const class VRXRenderer *renderer, const std::string& display_str = std::string());
+  static WindowManager *
+  Create(class VRXRenderer *renderer, const std::string& display_str = std::string());
 
   ~WindowManager();
 
@@ -95,9 +117,10 @@ class WindowManager {
 
  private:
   ServerContext sctx;
+  VRXRenderer *renderer = nullptr;
   
   // Invoked internally by Create().
-  WindowManager(Display* display, const class VRXRenderer *renderer);
+  WindowManager(Display* display, class VRXRenderer *renderer);
   // Frames a top-level window.
   void Frame(Window w);
   // Unframes a client window.
@@ -152,8 +175,6 @@ class WindowManager {
   int cEventBase;
   int cErrorBase;
 
-  const class VRXRenderer *renderer;
-
   std::map<Window, WmWindow *> windows;
   std::list<WmWindow *> focusedWindows;
 
@@ -165,6 +186,10 @@ class WindowManager {
 
   VRXPointerWindow pointerWindow;
 
+  KeyMap mKeyMap;
+  std::vector<WmWindow*> renderWindows;
+  bool moveFocusedWindow = false;
+
 public:
   void handleCreateWindow(struct WindowHandle *pWin, XID wid);
   void handleDestroyWindow(struct WindowHandle *pWin);
@@ -172,14 +197,16 @@ public:
   void focusMRUWindow(uint16_t num);
   void focus(WmWindow * win);
   void unfocus(WmWindow * win);
-  void prepareRenderWindows(std::list<WmWindow *> &renderWindows, const gvr::Mat4f &headInverse);
+  void toggleMoveFocusedWindow();
+  void prepareRenderWindows(const gvr::Mat4f &headInverse);
   struct WindowHandle *handleQueryPointerWindow();
   QueryPointerReturn handleQueryPointer(struct WindowHandle *pWin);
-  void updateCursorWindow(std::list<WmWindow *> &renderWindows);
+  void updateCursorWindow(std::vector<WmWindow *> &renderWindows);
   bool isFocused(const WmWindow * win);
   void changeWindowSize(float sizeDiff);
   void changeWindowDistance(float distanceDiff);
-
+  VRXRenderer *getRenderer() {return renderer;}
+  KeyMap& keyMap() {return mKeyMap;}
 };
 
 #endif

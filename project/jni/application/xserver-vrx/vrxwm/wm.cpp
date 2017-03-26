@@ -161,8 +161,7 @@ bool ServerContext::updateTexture(WmWindow *ww)
 bool WindowManager::wm_detected_;
 std::mutex WindowManager::wm_detected_mutex_;
 
-std::unique_ptr<WindowManager>
-WindowManager::Create(const VRXRenderer *renderer, const std::string& display_str) {
+WindowManager* WindowManager::Create(VRXRenderer *renderer, const std::string& display_str) {
   // 1. Open X display.
   const char* display_c_str =
         display_str.empty() ? nullptr : display_str.c_str();
@@ -172,10 +171,10 @@ WindowManager::Create(const VRXRenderer *renderer, const std::string& display_st
     return nullptr;
   }
   // 2. Construct WindowManager instance.
-  return std::unique_ptr<WindowManager>(new WindowManager(display, renderer));
+  return new WindowManager(display, renderer);
 }
 
-WindowManager::WindowManager(Display* display, const VRXRenderer *renderer)
+WindowManager::WindowManager(Display* display, VRXRenderer *renderer)
     : display_(CHECK_NOTNULL(display)),
       root_(DefaultRootWindow(display_)),
       WM_PROTOCOLS(XInternAtom(display_, "WM_PROTOCOLS", false)),
@@ -245,6 +244,12 @@ void WindowManager::Init() {
 }
 
 void WindowManager::Run() {
+  prepareRenderWindows(renderer->getHeadInverse());
+
+  for(auto w : renderWindows)
+    if (moveFocusedWindow && isFocused(w))
+      w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
+
   while (XPending(display_))
     {
       // 1. Get next event.
@@ -300,6 +305,8 @@ void WindowManager::Run() {
         LOGW("Ignored event");
       }
     }
+
+  renderer->DrawFrame(renderWindows);
 }
 
 void WindowManager::Frame(Window w) {
@@ -690,10 +697,18 @@ bool WindowManager::isFocused(const WmWindow * win)
   return win == focusedWindows.front();
 }
 
-void WindowManager::prepareRenderWindows(std::list<WmWindow *> &renderWindows,
-                                         const gvr::Mat4f &headInverse)
+void WindowManager::toggleMoveFocusedWindow()
 {
+  moveFocusedWindow = !moveFocusedWindow;
+  LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
+};
+
+
+void WindowManager::prepareRenderWindows(const gvr::Mat4f &headInverse)
+{
+  renderWindows.clear();
   sctx.setHeadInverse(headInverse);
+
   for (auto wi : windows)
     {
       WmWindow *win = wi.second;
@@ -725,7 +740,7 @@ void WindowManager::changeWindowDistance(float distanceDiff)
   w->addDistance(distanceDiff);
 }
 
-void WindowManager::updateCursorWindow(std::list<WmWindow *> &renderWindows)
+void WindowManager::updateCursorWindow(std::vector<WmWindow *> &renderWindows)
 {
 
   Vec4f intersection;

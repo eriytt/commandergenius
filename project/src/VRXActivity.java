@@ -45,7 +45,7 @@ import com.towersmatrix.vrx.xserver.VRXServer;
 public class VRXActivity extends Activity {
   private VRXServer xsrv = null;
   private GvrLayout gvrLayout;
-  private long nativeVRXRenderer;
+  private long nativeVRXWM;
 
   static {
     System.loadLibrary("gvr");
@@ -80,12 +80,12 @@ public class VRXActivity extends Activity {
               }
             });
 
-    // Initialize GvrLayout and the native renderer.
+    // Initialize GvrLayout and the native wm
     gvrLayout = new GvrLayout(this);
 
-    Log.i("VRX", "Creating native renderer");
-    nativeVRXRenderer =
-        nativeCreateRenderer(
+    Log.i("VRX", "Creating native WM");
+    nativeVRXWM=
+        nativeCreateWM(
             getClass().getClassLoader(),
             this.getApplicationContext(),
             gvrLayout.getGvrApi().getNativeGvrContext());
@@ -99,7 +99,7 @@ public class VRXActivity extends Activity {
         new GLSurfaceView.Renderer() {
           @Override
           public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-            nativeInitializeGl(nativeVRXRenderer);
+            nativeInitializeGl(nativeVRXWM);
           }
 
           @Override
@@ -107,7 +107,7 @@ public class VRXActivity extends Activity {
 
           @Override
           public void onDrawFrame(GL10 gl) {
-            nativeDrawFrame(nativeVRXRenderer);
+            nativeDrawFrame(nativeVRXWM);
           }
         });
     gvrLayout.setPresentationView(glSurfaceView);
@@ -133,14 +133,14 @@ public class VRXActivity extends Activity {
   @Override
   protected void onPause() {
     super.onPause();
-    nativeOnPause(nativeVRXRenderer);
+    nativeOnPause(nativeVRXWM);
     gvrLayout.onPause();
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    nativeOnResume(nativeVRXRenderer);
+    nativeOnResume(nativeVRXWM);
     gvrLayout.onResume();
     String ipInfo = new String("IP address: ");
     ipInfo += getIPAddress(true);
@@ -157,7 +157,7 @@ public class VRXActivity extends Activity {
       xsrv.terminate();
 
     gvrLayout.shutdown();
-    nativeDestroyRenderer(nativeVRXRenderer);
+    nativeDestroyWM(nativeVRXWM);
   }
 
   @Override
@@ -206,7 +206,7 @@ public class VRXActivity extends Activity {
     // if (event.getKeyCode() == KeyEvent.KEYCODE_P)
     //   xsrv.nativeMouseMotionEvent(100, 100);
 
-    int keyTrapped = nativeWMEvent(nativeVRXRenderer, event.getScanCode(), action == KeyEvent.ACTION_DOWN);
+    int keyTrapped = nativeWMEvent(nativeVRXWM, event.getScanCode(), action == KeyEvent.ACTION_DOWN);
     if (keyTrapped==1)
     {
       Log.i("VRX", "Key Trapped");
@@ -260,13 +260,13 @@ public class VRXActivity extends Activity {
     } catch (Exception ex) { } // for now eat exceptions
     return "";
   }
-  private native long nativeCreateRenderer(ClassLoader appClassLoader,
+  private native long nativeCreateWM(ClassLoader appClassLoader,
 					   Context context,
 					   long nativeGvrContext);
-  private native void nativeDestroyRenderer(long nativeVRXRenderer);
-  private native void nativeInitializeGl(long nativeVRXRenderer);
-  private native long nativeDrawFrame(long nativeVRXRenderer);
-  private native void nativeOnPause(long nativeVRXRenderer);
-  private native void nativeOnResume(long nativeVRXRenderer);
-  private native int nativeWMEvent(long nativeVRXRenderer, int scancode, boolean down);
+  private native void nativeDestroyWM(long nativeVRXWM);
+  private native void nativeInitializeGl(long nativeVRXWM);
+  private native long nativeDrawFrame(long nativeVRXWM);
+  private native void nativeOnPause(long nativeVRXWM);
+  private native void nativeOnResume(long nativeVRXWM);
+  private native int nativeWMEvent(long nativeVRXWM, int scancode, boolean down);
 }

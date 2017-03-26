@@ -22,6 +22,7 @@
 #include <linux/input.h>
 
 #include "vr/gvr/capi/include/gvr.h"
+#include "wm.h"
 #include "vrx_renderer.h"
 #include "common.h"
 
@@ -31,48 +32,58 @@
 
 namespace {
 
-inline jlong jptr(VRXRenderer *native_vrx_pointer) {
-  return reinterpret_cast<intptr_t>(native_vrx_pointer);
+inline jlong jptr(WindowManager *native_wm_pointer) {
+  return reinterpret_cast<intptr_t>(native_wm_pointer);
 }
 
-inline VRXRenderer *native(jlong ptr) {
-  return reinterpret_cast<VRXRenderer *>(ptr);
+inline WindowManager *native(jlong ptr) {
+  return reinterpret_cast<WindowManager *>(ptr);
 }
 }  // anonymous namespace
 
 extern "C" {
 
-JNI_METHOD(jlong, nativeCreateRenderer)(JNIEnv *env, jclass clazz,
+JNI_METHOD(jlong, nativeCreateWM)(JNIEnv *env, jclass clazz,
                                         jobject class_loader,
                                         jobject android_context,
                                         jlong native_gvr_api) {
   prctl(PR_SET_DUMPABLE, 1);
-  return jptr(new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api)));
+  VRXRenderer *r = new VRXRenderer(reinterpret_cast<gvr_context *>(native_gvr_api));
+  WindowManager *wm = WindowManager::Create(r, ":0");
+  // TODO: bail if this happens
+  if (!wm)
+    {
+      LOGE("Failed to initialize window manager");
+      return jptr(nullptr);
+    }
+
+  wm->Init();
+  return jptr(wm);
 }
 
-JNI_METHOD(void, nativeDestroyRenderer)
-(JNIEnv *env, jclass clazz, jlong native_vrx_pointer) {
-  delete native(native_vrx_pointer);
+JNI_METHOD(void, nativeDestroyWM)
+(JNIEnv *env, jclass clazz, jlong native_wm_pointer) {
+  delete native(native_wm_pointer);
 }
 
 JNI_METHOD(void, nativeInitializeGl)(JNIEnv *env, jobject obj,
-                                     jlong native_vrx_pointer) {
-  native(native_vrx_pointer)->InitializeGl();
+                                     jlong native_wm_pointer) {
+  native(native_wm_pointer)->getRenderer()->InitializeGl();
 }
 
 JNI_METHOD(void, nativeDrawFrame)(JNIEnv *env, jobject obj,
-                                  jlong native_vrx_pointer) {
-  native(native_vrx_pointer)->DrawFrame();
+                                  jlong native_wm_pointer) {
+  native(native_wm_pointer)->Run();
 }
 
 JNI_METHOD(void, nativeOnPause)(JNIEnv *env, jobject obj,
-                                jlong native_vrx_pointer) {
-  native(native_vrx_pointer)->OnPause();
+                                jlong native_wm_pointer) {
+  native(native_wm_pointer)->getRenderer()->OnPause();
 }
 
 JNI_METHOD(void, nativeOnResume)(JNIEnv *env, jobject obj,
-                                 jlong native_vrx_pointer) {
-  native(native_vrx_pointer)->OnResume();
+                                 jlong native_wm_pointer) {
+  native(native_wm_pointer)->getRenderer()->OnResume();
 }
 
 bool isModifierKey(int keyCode)
@@ -92,35 +103,35 @@ bool isModifierKey(int keyCode)
   }
 }
 
-JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_pointer, jint scancode, jboolean down) {
+JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_wm_pointer, jint scancode, jboolean down) {
   LOGI("nativeWMEvent key event, scancode %d, down = %d", scancode, down);
 
-  VRXRenderer* vrxRenderer = native(native_vrx_pointer);
-  vrxRenderer->keyMap().setKey(scancode, down);
+  WindowManager* wm = native(native_wm_pointer);
+  wm->keyMap().setKey(scancode, down);
 
   // In command mode: trap everything except modifier keys
   // Ignore key down. action is on key up.
 
     //CMD key
-  if (scancode==vrxRenderer->keyMap().commandKey && vrxRenderer->keyMap().getKey(KEY_LEFTCTRL))
+  if (scancode == wm->keyMap().commandKey && wm->keyMap().getKey(KEY_LEFTCTRL))
     {
       if (down){ return 1; }
       
-      if (!vrxRenderer->keyMap().isCommandMode)
+      if (!wm->keyMap().isCommandMode)
         {
           LOGI("\n\nnativeWMEvent Enter command mode\n\n");
-          vrxRenderer->keyMap().isCommandMode = true;
+          wm->keyMap().isCommandMode = true;
           return 1;
         }
       else
         {
           LOGI("\n\nnativeWMEvent exit command mode\n\n");
-          vrxRenderer->keyMap().isCommandMode = false;
+          wm->keyMap().isCommandMode = false;
           return 1;
         }
     }
 
-  if (not vrxRenderer->keyMap().isCommandMode)
+  if (not wm->keyMap().isCommandMode)
     return 0;    // Normal mode - let key through
 
   // TODO Handle command mode
@@ -133,30 +144,30 @@ JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_vrx_poin
 
   if (scancode==KEY_A)
   {
-    vrxRenderer->getWM()->focusMRUWindow(1); // Take second window and move to front;
+    wm->focusMRUWindow(1); // Take second window and move to front;
   }
 
   if (scancode==KEY_B)
   {
-    vrxRenderer->getWM()->changeWindowSize(0.3);
+    wm->changeWindowSize(0.3);
   }
   if (scancode==KEY_S)
   {
-    vrxRenderer->getWM()->changeWindowSize(-0.3);
+    wm->changeWindowSize(-0.3);
   }
   
   if (scancode==KEY_C)
   {
-    vrxRenderer->getWM()->changeWindowDistance(-30.0);
+    wm->changeWindowDistance(-30.0);
   }
   if (scancode==KEY_F)
   {
-    vrxRenderer->getWM()->changeWindowDistance(30.0);
+    wm->changeWindowDistance(30.0);
   }
 
   if (scancode==KEY_M)
   {
-    vrxRenderer->toggleMoveFocusedWindow();
+    wm->toggleMoveFocusedWindow();
   }
 
   return 1;

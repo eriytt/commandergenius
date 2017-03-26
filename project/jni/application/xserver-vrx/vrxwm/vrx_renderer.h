@@ -39,26 +39,6 @@ extern "C" {
 #include "world_layout_data.h"
 #include "vrx_types.h"
 
-class KeyMap
-{
-public:
-  int commandKey = KEY_A;
-  bool isCommandMode = false;
-  void setKey(int code, uint8_t isDown)
-  {
-    if (code < 256) keys[code] = isDown;
-  }
-  
-  uint8_t getKey(int code)
-  {
-    if (code < 256) return keys[code];
-    
-    return 0;
-  }
-private:
-  uint8_t keys[256];
-};
-
 class VRXRenderer {
  public:
   /**
@@ -82,7 +62,7 @@ class VRXRenderer {
   /**
    * Draw the VRX scene. This should be called on the rendering thread.
    */
-  void DrawFrame();
+  void DrawFrame(const std::vector<WmWindow*> &renderWindows);
 
   /**
    * Pause head tracking.
@@ -94,14 +74,6 @@ class VRXRenderer {
    */
   void OnResume();
 
-  KeyMap& keyMap();
-  
-  //void focusMRUWindow(uint16_t num) {wm->focusMRUWindow(num);};
-  
-  void toggleMoveFocusedWindow();
-
-  WindowManager *getWM() {return wm.get();}
-  
   const gvr::Mat4f &getHeadView() const {return head_view;}
   const gvr::Mat4f &getHeadInverse() const {return head_inverse;}
  private:
@@ -117,7 +89,8 @@ class VRXRenderer {
    * @param eye The eye to render. Includes all required transformations.
    */
   void DrawEye(gvr::Eye eye, const gvr::Mat4f& view_matrix,
-               const gvr::BufferViewport& params);
+               const gvr::BufferViewport& params,
+               const std::vector<WmWindow*> &renderWindows);
 
   void DrawWindow(WmWindow *win, const gvr::Mat4f &perspective);
 
@@ -173,15 +146,6 @@ class VRXRenderer {
   int wMVP_param;
   int wTex_param;
   int wPos_param;
-
-  std::unique_ptr<WindowManager> wm;
-
-  std::list<WmWindow *> renderWindows;
-
-  KeyMap mKeyMap;
-  
-  bool moveFocusedWindow = false;
-
 };
 
 #endif  // VRX_APP_SRC_MAIN_JNI_VRXRENDERER_H_  // NOLINT
