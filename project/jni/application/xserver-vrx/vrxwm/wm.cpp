@@ -446,8 +446,15 @@ void WindowManager::OnMapNotify(const XMapEvent& e)
       return;
     }
 
+  Window childwin = 0;
+  for (auto& client : clients_)
+    if (client.second == e.window ){
+      childwin = client.first;
+      break;
+    }
+
   // New window
-  auto w = new WmWindow(e.window);
+  auto w = childwin ? new WmWindow(e.window, childwin) : new WmWindow(e.window);
   sctx.connectWindows(w);
   w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
   w->setMapped(true);
@@ -679,7 +686,7 @@ void WindowManager::focus(WmWindow * win)
   focusedWindows.push_front(win);
   win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
   XRaiseWindow(display_, win->getId());
-  XSetInputFocus(display_, win->getId(), RevertToPointerRoot, CurrentTime);
+  XSetInputFocus(display_, win->getChildId(), RevertToPointerRoot, CurrentTime);
 
   LOGI("Window focused: %ld", win->getId());
 }

@@ -61,16 +61,19 @@ private:
   float distance = DEFAULT_DISTANCE;
   gvr::Mat4f head;
   gvr::Mat4f headInverse;
+  Window childId = -1;
 
   void allocTexture(unsigned int w, unsigned int h);
 
 public:
   WmWindow(Window id);
+  WmWindow(Window id, Window childid);
   void setMapped(bool m) {mapped = m;}
   bool getMapped() const {return mapped;}
   bool isGone() const {return gone;}
 
   Window getId() const {return id;}
+  Window getChildId() const {return childId;}
   void updateTransform(const gvr::Mat4f &newhead, const gvr::Mat4f &newHeadInverse);
   void updateTexture(unsigned int w, unsigned int h);
   bool updateTexture(struct WindowHandle *handle);

@@ -48,6 +48,22 @@ WmWindow::WmWindow(Window id) : id(id)
     };
 
 }
+
+WmWindow::WmWindow(Window id, Window child) : id(id), childId(child)
+{
+ windowCoords =
+   {
+     // Front face
+     -2.0f,  2.0f,  0.0f,
+     -2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+     -2.0f, -2.0f,  0.0f,
+      2.0f, -2.0f,  0.0f,
+      2.0f,  2.0f,  0.0f,
+    };
+
+}
+
 void WmWindow::updateTransform(const gvr::Mat4f &newHead, const gvr::Mat4f &newHeadInverse)
 {
   gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,      0.0f,
