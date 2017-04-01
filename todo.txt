@@ -1,9 +1,7 @@
-Border shows focused window
-
 Disable focus follows mouse
  - toggle focus with kbd
  - hotkey for "focus win currently under pointer"
-
+ 
 Focus nearest window under pointer, instead of first match
 
 Move focused window slightly closer to avoid rounding errors with other windows at same distance
@@ -13,3 +11,14 @@ updated every loop iteration if the window contents has not changed. Drawable
 in the X server has such a flag if I am not mistaken. 
 
 Mouse click by magnetic sensor ???
+
+WmWindow lifecycle
+- delete window when client really is dead
+- free texture
+
+Disable stacktrace, seems like there could be an exploit if left on
+
+Control log level
+
+Fix window focus cycling
+- Suggest begin/end refocus

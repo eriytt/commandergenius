@@ -26,12 +26,142 @@ extern "C" {
 
 #include "common.h"
 #include "wm-util.h"
+#include "world_layout_data.h"
+#include "vrx_renderer.h"
+#include "algebra.h"
+#include "cursor.h"
+
+void ServerContext::handleCreateWindow(struct WindowHandle *w, XID wid)
+{
+  LOGI("Adding ServerWindow %ld (%p)", wid, w);
+
+  auto swin = new ServerWindow(w, wid);
+  windowsByHandle.insert(std::make_pair(w, swin));
+  windowsById.insert(std::make_pair(wid, swin));
+}
+
+void ServerContext::handleDestroyWindow(struct WindowHandle *w)
+{
+  LOGI("Deleting window handle %p", w);
+
+  if (not windowsByHandle.count(w))
+    return;
+
+  auto i = windowsByHandle.find(w);
+  auto sw = (*i).second;
+  auto id = sw->getId();
+
+  windowsByHandle.erase(i);
+  windowsById.erase(windowsById.find(id));
+
+  delete sw;
+  
+  if (currentPointerWindow == sw)
+    currentPointerWindow = nullptr;
+}
+
+struct WindowHandle *ServerContext::handleQueryPointerWindow()
+{
+  if (not currentPointerWindow)
+    return nullptr;
+  return currentPointerWindow->getHandle();;
+}
+
+// TODO: This is not really thread safe. We can be sure that window list does not change
+//       under our feet, but any of the matrices used in transforms change, and in particular
+//       between transforms from eye space to world space and back.
+QueryPointerReturn ServerContext::handleQueryPointer(struct WindowHandle *w)
+{
+  QueryPointerReturn r;
+
+  if (not windowsByHandle.count(w))
+    {
+      // We don't know anything about this window, might be the root window
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -WindowManager::DESKTOP_SIZE / 2;
+      r.win_y = -WindowManager::DESKTOP_SIZE / 2;
+      return r;
+    }
+
+  ServerWindow *sw = windowsByHandle[w];
+  unsigned int hw, hh;
+  gvr::Mat4f window_head = sw->getCollisionParameters(&hw, &hh);
+  
+  mtx.lock(); // protects head_inverse
+  Vec4f mouse_vector = MatrixVectorMul(head_inverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+  mtx.unlock();
+  
+  Vec4f window_relative_view_vector = MatrixVectorMul(window_head, mouse_vector);
+
+  Vec4f isect;
+  if (VRXCursor::IntersectWindow(hw, hh, window_relative_view_vector, isect))
+    {
+      r.root_x = WindowManager::DESKTOP_SIZE / 2 + hw + isect.x();
+      r.root_y = WindowManager::DESKTOP_SIZE / 2 + hh - isect.y();
+      r.win_x = hw + isect.x();
+      r.win_y = hh - isect.y();
+    }
+  else
+    {
+      r.root_x = 0;
+      r.root_y = 0;
+      r.win_x = -WindowManager::DESKTOP_SIZE / 2;
+      r.win_y = -WindowManager::DESKTOP_SIZE / 2;
+    }
+
+  return r;
+}
+
+void ServerContext::setHeadInverse(const gvr::Mat4f &hi)
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  head_inverse = hi;
+}
+
+bool ServerContext::connectWindows(WmWindow *ww)
+{
+  if (ww->srvwin)
+    return true;
+
+  if (ww->isGone())
+    return false;
+
+  Window id = ww->getId();
+  
+  if (not windowsById.count(id))
+    return false;
+
+  auto sw = windowsById[id];
+  sw->wmwin = ww;
+  ww->srvwin = sw;
+  return true;
+}
+
+void ServerContext::setPointerWindow(Window id)
+{
+  auto wi = windowsById.find(id);
+  if (wi != windowsById.end())
+    currentPointerWindow = (*wi).second;
+}
+
+bool ServerContext::updateTexture(WmWindow *ww)
+{
+  if (not connectWindows(ww))
+    return false;
+
+  // WmWindow is mapped and connected, and cannot disappear all of a sudden,
+  // remember that we own this window.
+  // This means we can update the texture without locking
+  auto swin = windowsById[ww->getId()];
+  return ww->updateTexture(swin->getHandle());
+}
+
 
 bool WindowManager::wm_detected_;
 std::mutex WindowManager::wm_detected_mutex_;
 
-std::unique_ptr<WindowManager> WindowManager::Create(
-    const std::string& display_str) {
+WindowManager* WindowManager::Create(VRXRenderer *renderer, const std::string& display_str) {
   // 1. Open X display.
   const char* display_c_str =
         display_str.empty() ? nullptr : display_str.c_str();
@@ -41,14 +171,19 @@ std::unique_ptr<WindowManager> WindowManager::Create(
     return nullptr;
   }
   // 2. Construct WindowManager instance.
-  return std::unique_ptr<WindowManager>(new WindowManager(display));
+  return new WindowManager(display, renderer);
 }
 
-WindowManager::WindowManager(Display* display)
+WindowManager::WindowManager(Display* display, VRXRenderer *renderer)
     : display_(CHECK_NOTNULL(display)),
       root_(DefaultRootWindow(display_)),
       WM_PROTOCOLS(XInternAtom(display_, "WM_PROTOCOLS", false)),
-      WM_DELETE_WINDOW(XInternAtom(display_, "WM_DELETE_WINDOW", false)) {
+      WM_DELETE_WINDOW(XInternAtom(display_, "WM_DELETE_WINDOW", false)),
+      renderer(renderer)
+{
+  pointerWindow.window = nullptr;
+  pointerWindow.x = 0;
+  pointerWindow.y = 0;
 }
 
 WindowManager::~WindowManager() {
@@ -109,6 +244,12 @@ void WindowManager::Init() {
 }
 
 void WindowManager::Run() {
+  prepareRenderWindows(renderer->getHeadInverse());
+
+  for(auto w : renderWindows)
+    if (moveFocusedWindow && isFocused(w))
+      w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
+
   while (XPending(display_))
     {
       // 1. Get next event.
@@ -164,6 +305,8 @@ void WindowManager::Run() {
         LOGW("Ignored event");
       }
     }
+
+  renderer->DrawFrame(renderWindows);
 }
 
 void WindowManager::Frame(Window w) {
@@ -171,7 +314,7 @@ void WindowManager::Frame(Window w) {
   const unsigned int BORDER_WIDTH = 10;
   const unsigned long BORDER_COLOR = 0xd0d0d0;
   const unsigned long BG_COLOR = 0x0000ff;
-  LOGI("Framing window %d", w);
+  LOGI("Framing window %ld", w);
   CHECK(!clients_.count(w));
 
   // 1. Retrieve attributes of window to frame.
@@ -250,7 +393,7 @@ void WindowManager::Frame(Window w) {
       GrabModeAsync,
       GrabModeAsync);
 
-  LOGI("Framed window %d [%d]", w, frame);
+  LOGI("Framed window %ld [%ld]", w, frame);
 }
 
 void WindowManager::Unframe(Window w) {
@@ -258,6 +401,8 @@ void WindowManager::Unframe(Window w) {
 
   // We reverse the steps taken in Frame().
   const Window frame = clients_[w];
+  windows[frame]->setMapped(false);
+  unfocus(windows[frame]);
   // 1. Unmap frame.
   XUnmapWindow(display_, frame);
   // 2. Reparent client window.
@@ -273,7 +418,7 @@ void WindowManager::Unframe(Window w) {
   // 5. Drop reference to frame handle.
   clients_.erase(w);
 
-  LOGI("Unframed window %d [%d]", w, frame);
+  LOGI("Unframed window %ld [%ld]", w, frame);
 }
 
 void WindowManager::OnCreateNotify(const XCreateWindowEvent& e)
@@ -294,6 +439,29 @@ void WindowManager::OnReparentNotify(const XReparentEvent& e)
 void WindowManager::OnMapNotify(const XMapEvent& e)
 {
   LOGI("OnMapNotify");
+
+  if (windows.count(e.window) and not clients_.count(e.window))
+    {
+      focus(windows[e.window]);
+      return;
+    }
+
+  Window childwin = 0;
+  for (auto& client : clients_)
+    if (client.second == e.window ){
+      childwin = client.first;
+      break;
+    }
+
+  // New window
+  auto w = childwin ? new WmWindow(e.window, childwin) : new WmWindow(e.window);
+  sctx.connectWindows(w);
+  w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
+  w->setMapped(true);
+  windows[e.window] = w;
+
+  if (not clients_.count(e.window))
+    focus(w);
 }
 
 void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
@@ -304,11 +472,11 @@ void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
   //     - A frame we just destroyed ourselves.
   //     - A pre-existing and mapped top-level window we reparented.
   if (!clients_.count(e.window)) {
-    LOGI("Ignore UnmapNotify for non-client window %d", e.window);
+    LOGI("Ignore UnmapNotify for non-client window %ld", e.window);
     return;
   }
   if (e.event == root_) {
-    LOGI("Ignore UnmapNotify for reparented pre-existing window %d", e.window);
+    LOGI("Ignore UnmapNotify for reparented pre-existing window %ld", e.window);
     return;
   }
   Unframe(e.window);
@@ -342,10 +510,10 @@ void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
   if (clients_.count(e.window)) {
     const Window frame = clients_[e.window];
     XConfigureWindow(display_, frame, e.value_mask, &changes);
-    LOGI("Resize [%d] to %s", frame, Size<int>(e.width, e.height).ToString().c_str());
+    LOGI("Resize [%ld] to %s", frame, Size<int>(e.width, e.height).ToString().c_str());
   }
   XConfigureWindow(display_, e.window, e.value_mask, &changes);
-  LOGI("Resize %d to %s", e.window, Size<int>(e.width, e.height).ToString().c_str());
+  LOGI("Resize %ld to %s", e.window, Size<int>(e.width, e.height).ToString().c_str());
 }
 
 void WindowManager::OnButtonPress(const XButtonEvent& e) {
@@ -433,7 +601,7 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
                    supported_protocols + num_supported_protocols,
                    WM_DELETE_WINDOW) !=
          supported_protocols + num_supported_protocols)) {
-      LOGI("Gracefully deleting window %d", e.window);
+      LOGI("Gracefully deleting window %ld", e.window);
       // 1. Construct message.
       XEvent msg;
       memset(&msg, 0, sizeof(msg));
@@ -445,7 +613,7 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
       // 2. Send message to window to be closed.
       CHECK(XSendEvent(display_, e.window, false, 0, &msg));
     } else {
-      LOGI("Killing window %d", e.window);
+      LOGI("Killing window %ld", e.window);
       XKillClient(display_, e.window);
     }
   } else if ((e.state & Mod1Mask) &&
@@ -473,7 +641,7 @@ int WindowManager::OnXError(Display* display, XErrorEvent* e) {
   LOGE("Received X error:\n"
        "    Request: %d - %s\n"
        "    Error code: %d - %s\n"
-       "    Resource ID: %d",
+       "    Resource ID: %ld",
        int(e->request_code), XRequestCodeToString(e->request_code).c_str(),
        int(e->error_code), error_text,
        e->resourceid);
@@ -492,7 +660,145 @@ int WindowManager::OnWMDetected(Display* display, XErrorEvent* e) {
   return 0;
 }
 
-Display* WindowManager::display()
+
+void WindowManager::focusMRUWindow(uint16_t num)
 {
-  return display_;
+  // Take win #num in Most Recently Used list and move to front
+  if (focusedWindows.size() <= num){ return; }
+  decltype(focusedWindows.end()) it;
+  for (it = focusedWindows.begin(); num > 0; it++, --num);
+  focus(*it);
+  LOGI("Window focused: %ld", (*it)->getId());
 }
+
+void WindowManager::focus(WmWindow * win)
+{
+  if (focusedWindows.size())
+    {
+      WmWindow *old = focusedWindows.front();
+      unfocus(old);
+    }
+  
+  auto wwi = std::find(focusedWindows.begin(), focusedWindows.end(), win);
+  if (wwi != focusedWindows.end())
+    focusedWindows.erase(wwi);
+  
+  focusedWindows.push_front(win);
+  win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
+  XRaiseWindow(display_, win->getId());
+  XSetInputFocus(display_, win->getChildId(), RevertToPointerRoot, CurrentTime);
+
+  LOGI("Window focused: %ld", win->getId());
+}
+
+void WindowManager::unfocus(WmWindow * win)
+{
+  win->setBorderColor(display_, UNFOCUSED_BORDER_COLOR);
+  LOGI("Window unfocused: %ld", win->getId());
+}
+
+bool WindowManager::isFocused(const WmWindow * win)
+{
+  if (not focusedWindows.size()){ return false; }
+
+  return win == focusedWindows.front();
+}
+
+void WindowManager::toggleMoveFocusedWindow()
+{
+  moveFocusedWindow = !moveFocusedWindow;
+  LOGI("Move Window: %s", moveFocusedWindow? "enabled" : "disabled");
+};
+
+
+void WindowManager::prepareRenderWindows(const gvr::Mat4f &headInverse)
+{
+  renderWindows.clear();
+  sctx.setHeadInverse(headInverse);
+
+  for (auto wi : windows)
+    {
+      WmWindow *win = wi.second;
+      if (not win->getMapped())
+        continue;
+
+      if (sctx.updateTexture(win))
+        renderWindows.push_back(win);
+    }
+
+  updateCursorWindow(renderWindows);
+}
+
+void WindowManager::changeWindowSize(float sizeDiff)
+{
+  if (focusedWindows.size() == 0) return;
+  WmWindow *w = focusedWindows.front();
+  if (w->getScale() + sizeDiff <= 0.0) return;
+
+  w->addScale(sizeDiff);
+}
+
+void WindowManager::changeWindowDistance(float distanceDiff)
+{
+  if (focusedWindows.size() == 0) return;
+  WmWindow *w = focusedWindows.front();
+  if (w->getDistance() + distanceDiff <= 100.0) return;
+
+  w->addDistance(distanceDiff);
+}
+
+void WindowManager::updateCursorWindow(std::vector<WmWindow *> &renderWindows)
+{
+
+  Vec4f intersection;
+  const WmWindow *hit = nullptr;
+  bool send_event = false;
+  const gvr::Mat4f &headInverse = renderer->getHeadInverse();
+  Vec4f mouse_vector = MatrixVectorMul(headInverse, Vec4f{0.0f, 0.0f, -1.0f, 0.0f});
+
+  for (auto w: renderWindows)
+    {
+      Vec4f window_relative_view_vector = MatrixVectorMul(w->getHead(), mouse_vector);
+      if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
+        {
+          hit =  w;
+          break;
+        }
+    }
+
+  if (hit)
+    {
+      VRXCursor::SetCursorMatrix(MatrixMul(hit->getHeadInverse(), {1.0, 0.0, 0.0, intersection.x(),
+              0.0, 1.0, 0.0, intersection.y(),
+              0.0, 0.0, 1.0, -WmWindow::DEFAULT_DISTANCE + 10.0,
+              0.0, 0.0, 0.0, 1.0}));
+
+      short int x = hit->getHalfWidth() + intersection.x();
+      short int y = hit->getHalfHeight() - intersection.y();
+      send_event = hit != pointerWindow.window or x != pointerWindow.x or y != pointerWindow.y;
+      pointerWindow.x = x;
+      pointerWindow.y = y;
+      pointerWindow.window = hit;
+    }
+  else
+    {
+      VRXCursor::SetCursorMatrix(MatrixMul(headInverse, { 1.0, 0.0, 0.0, 0.0,
+              0.0, 1.0, 0.0, 0.0,
+              0.0, 0.0, 1.0, -WmWindow::DEFAULT_DISTANCE * 1.5f,
+              0.0, 0.0, 0.0, 1.0}));
+
+      send_event = pointerWindow.window != nullptr;
+      pointerWindow.window = hit;
+      pointerWindow.x = pointerWindow.y = -DESKTOP_SIZE / 2;
+    }
+
+  if (pointerWindow.window)
+    sctx.setPointerWindow(pointerWindow.window->getId());
+  
+  if (send_event)
+    {
+      VRXMouseMotionEvent(pointerWindow.x + DESKTOP_SIZE / 2,
+                          pointerWindow.y + DESKTOP_SIZE / 2, false);
+    }
+}
+

@@ -17,7 +17,7 @@
 
 noinst_LIBRARIES = libvrxwm.a
 
-libvrxwm_a_SOURCES = vrx_jni.cc vrx_renderer.cc vrx_renderer.h  world_layout_data.h wm.cpp wm.h wm-util.cpp wm-util.h common.h cursor.h cursor.cc algebra.h algebra.cc gl-utils.h gl-utils.cc
+libvrxwm_a_SOURCES = vrx_jni.cc vrx_renderer.cc vrx_renderer.h  world_layout_data.h wm.cpp wm.h wm-util.cpp wm-util.h common.h cursor.h cursor.cc algebra.h algebra.cc gl-utils.h gl-utils.cc vrxwindow.hh vrxwindow.cc
 
 relink:
 	rm -f $(noinst_LTLIBRARIES) && make $(noinst_LTLIBRARIES)

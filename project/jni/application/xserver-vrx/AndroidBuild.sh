@@ -104,7 +104,7 @@ os/.libs/libos.a \
 hw/kdrive/linux/.libs/liblinux.a \
 -Wl,-uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeRunX,\
 -uJava_com_towersmatrix_vrx_xserver_VRXServer_nativeGetFrameBufferPointer,\
--uJava_com_towersmatrix_vrx_VRXActivity_nativeCreateRenderer,\
+-uJava_com_towersmatrix_vrx_VRXActivity_nativeCreateWM,\
 -uVRXGetWindowBuffer \
 -lpixman-1 -lXfont -lXau -lXdmcp -lfontenc -lts -lfreetype -landroid-shmem -l:libcrypto.so.sdl.0.so \
 -L'"$GVRNDK/lib/$NDK_ARCH"' \

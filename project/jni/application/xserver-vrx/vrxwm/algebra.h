@@ -152,3 +152,6 @@ typedef Plane<float> Planef;
 gvr::Mat4f MatrixMul(const gvr::Mat4f& matrix1, const gvr::Mat4f& matrix2);
 gvr::Mat4f MatrixInverseRotation(const gvr::Mat4f& matrix);
 gvr::Mat4f MatrixTranspose(const gvr::Mat4f& matrix);
+std::array<float, 4> MatrixVectorMul(const gvr::Mat4f& matrix,
+                                     const std::array<float, 4>& vec);
+Vec4f MatrixVectorMul(const gvr::Mat4f& matrix, const Vec4f& vec);

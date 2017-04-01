@@ -152,13 +152,25 @@ void VRXCursor::Draw(const gvr::Mat4f &mvp)
   glDisable(GL_BLEND);
 }
 
-bool VRXCursor::IntersectWindow(const VRXWindow *window, const Vec4f &direction, Vec4f &isect)
+bool VRXCursor::IntersectWindow(const WmWindow *window, const Vec4f &direction, Vec4f &isect)
 {
-  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, static_cast<float>(-VRXWindow::DEFAULT_DISTANCE)});
+  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, static_cast<float>(-WmWindow::DEFAULT_DISTANCE)});
   isect = wplane.intersectLine(direction);
 
-  if ((isect.x() <= window->getHalfWidth() && isect.x() > -window->getHalfWidth())
-      && (isect.y() <= window->getHalfHeight() && isect.y() > -window->getHalfHeight()))
+  if ((isect.x() <= window->getHalfWidth() and isect.x() > -window->getHalfWidth())
+      and (isect.y() <= window->getHalfHeight() and isect.y() > -window->getHalfHeight()))
+    return true;
+  return false;
+}
+
+bool VRXCursor::IntersectWindow(unsigned int halfWidth, unsigned int halfHeight,
+                                const Vec4f &direction, Vec4f &isect)
+{
+  Planef wplane({0.0, 0.0, 1.0}, {0.0, 0.0, static_cast<float>(-WmWindow::DEFAULT_DISTANCE)});
+  isect = wplane.intersectLine(direction);
+
+  if ((isect.x() <= halfWidth and isect.x() > -halfWidth)
+      and (isect.y() <= halfHeight and isect.y() > -halfHeight))
     return true;
   return false;
 }
