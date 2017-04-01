@@ -6,6 +6,9 @@ Focus nearest window under pointer, instead of first match
 
 Move focused window slightly closer to avoid rounding errors with other windows at same distance
 
+Introduce "dirty window" functionality so that the texture won't have to be
+updated every loop iteration if the window contents has not changed. Drawable
+in the X server has such a flag if I am not mistaken. 
 
 Mouse click by magnetic sensor ???
 

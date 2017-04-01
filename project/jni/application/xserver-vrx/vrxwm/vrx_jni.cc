@@ -21,6 +21,10 @@
 #include <memory>
 #include <linux/input.h>
 
+extern "C" {
+#include <vrxexport.h>
+}
+
 #include "vr/gvr/capi/include/gvr.h"
 #include "wm.h"
 #include "vrx_renderer.h"
@@ -169,6 +173,12 @@ JNI_METHOD(jint, nativeWMEvent)(JNIEnv *env, jobject thiz, jlong native_wm_point
   {
     wm->toggleMoveFocusedWindow();
   }
+
+  if (scancode == KEY_ENTER)
+    {
+      VRXMouseButtonEvent(1);
+      VRXMouseButtonEvent(0);
+    }
 
   return 1;
 }
