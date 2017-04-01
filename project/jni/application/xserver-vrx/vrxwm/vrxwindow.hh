@@ -68,6 +68,7 @@ private:
 public:
   WmWindow(Window id);
   WmWindow(Window id, Window childid);
+  ~WmWindow();
   void setMapped(bool m) {mapped = m;}
   bool getMapped() const {return mapped;}
   bool isGone() const {return gone;}

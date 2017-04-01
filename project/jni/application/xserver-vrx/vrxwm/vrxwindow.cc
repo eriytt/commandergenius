@@ -64,6 +64,11 @@ WmWindow::WmWindow(Window id, Window child) : id(id), childId(child)
 
 }
 
+WmWindow::~WmWindow()
+{
+  glDeleteTextures(1, &texId);
+}
+
 void WmWindow::updateTransform(const gvr::Mat4f &newHead, const gvr::Mat4f &newHeadInverse)
 {
   gvr::Mat4f trans = {1.0f,   0.0f,    0.0f,      0.0f,

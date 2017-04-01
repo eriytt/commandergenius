@@ -246,6 +246,16 @@ void WindowManager::Init() {
 void WindowManager::Run() {
   prepareRenderWindows(renderer->getHeadInverse());
 
+  auto i = windows.begin();
+  while (i != windows.end())
+    if ((*i).second->isGone())
+      {
+        delete (*i).second;
+        i = windows.erase(i);
+      }
+    else
+      ++i;
+
   for(auto w : renderWindows)
     if (moveFocusedWindow && isFocused(w))
       w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
