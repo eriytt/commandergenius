@@ -34,7 +34,7 @@ gvr::Mat4f ServerWindow::getCollisionParameters(unsigned int *h, unsigned int *w
   return head;
 }
 
-WmWindow::WmWindow(Window id) : id(id)
+WmWindow::WmWindow(Window id, unsigned int x, unsigned int y) : id(id), x(x), y(y)
 {
  windowCoords =
    {
@@ -49,7 +49,8 @@ WmWindow::WmWindow(Window id) : id(id)
 
 }
 
-WmWindow::WmWindow(Window id, Window child) : id(id), childId(child)
+WmWindow::WmWindow(Window id, unsigned int x, unsigned int y, Window child)
+  : id(id), x(x), y(y), childId(child)
 {
  windowCoords =
    {

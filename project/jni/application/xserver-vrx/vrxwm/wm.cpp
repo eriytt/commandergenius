@@ -244,17 +244,21 @@ void WindowManager::Init() {
 }
 
 void WindowManager::Run() {
-  prepareRenderWindows(renderer->getHeadInverse());
-
   auto i = windows.begin();
   while (i != windows.end())
     if ((*i).second->isGone())
       {
-        delete (*i).second;
+        auto w = (*i).second;
+        if (isFocused(w))
+          focusMRUWindow(1);
+
+        delete w;
         i = windows.erase(i);
       }
     else
       ++i;
+
+  prepareRenderWindows(renderer->getHeadInverse());
 
   for(auto w : renderWindows)
     if (moveFocusedWindow && isFocused(w))
@@ -450,9 +454,17 @@ void WindowManager::OnMapNotify(const XMapEvent& e)
 {
   LOGI("OnMapNotify");
 
-  if (windows.count(e.window) and not clients_.count(e.window))
+  if (windows.count(e.window))
     {
-      focus(windows[e.window]);
+      auto w = windows[e.window];
+      if (w->isFrame())
+        focus(w);
+      else
+        {
+          WmWindow *parent = focusedWindows.front();
+          w->updateTransform(parent->getHead(), parent->getHeadInverse());
+          w->addDistance(-1.0f);
+        }
       return;
     }
 
@@ -464,13 +476,28 @@ void WindowManager::OnMapNotify(const XMapEvent& e)
     }
 
   // New window
-  auto w = childwin ? new WmWindow(e.window, childwin) : new WmWindow(e.window);
+  WmWindow *w = nullptr;
+  if (childwin)
+    {
+      w = new WmWindow(e.window, DESKTOP_SIZE / 2, DESKTOP_SIZE / 2, childwin);
+      w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
+    }
+  else
+    {
+      XWindowAttributes attrs;
+      CHECK(XGetWindowAttributes(display_, e.window, &attrs));
+
+      LOGI("Window position %d,%d", attrs.x, attrs.y);
+      w = new WmWindow(e.window, attrs.x, attrs.y);
+      WmWindow *parent = focusedWindows.front();
+      w->updateTransform(parent->getHead(), parent->getHeadInverse());
+      w->addDistance(-1.0f);
+    }
   sctx.connectWindows(w);
-  w->updateTransform(renderer->getHeadView(), renderer->getHeadInverse());
   w->setMapped(true);
   windows[e.window] = w;
 
-  if (not clients_.count(e.window))
+  if (w->isFrame())
     focus(w);
 }
 
@@ -696,7 +723,9 @@ void WindowManager::focus(WmWindow * win)
   focusedWindows.push_front(win);
   win->setBorderColor(display_, FOCUSED_BORDER_COLOR);
   XRaiseWindow(display_, win->getId());
-  XSetInputFocus(display_, win->getChildId(), RevertToPointerRoot, CurrentTime);
+  Window childId = win->getChildId();
+  XSetInputFocus(display_, childId ? childId: win->getId(),
+                 RevertToPointerRoot, CurrentTime);
 
   LOGI("Window focused: %ld", win->getId());
 }
@@ -770,10 +799,8 @@ void WindowManager::updateCursorWindow(std::vector<WmWindow *> &renderWindows)
     {
       Vec4f window_relative_view_vector = MatrixVectorMul(w->getHead(), mouse_vector);
       if (VRXCursor::IntersectWindow(w, window_relative_view_vector, intersection))
-        {
-          hit =  w;
-          break;
-        }
+        if (not hit or w->getDistance() < hit->getDistance())
+          hit = w;
     }
 
   if (hit)
@@ -797,8 +824,8 @@ void WindowManager::updateCursorWindow(std::vector<WmWindow *> &renderWindows)
               0.0, 0.0, 1.0, -WmWindow::DEFAULT_DISTANCE * 1.5f,
               0.0, 0.0, 0.0, 1.0}));
 
-      send_event = pointerWindow.window != nullptr;
-      pointerWindow.window = hit;
+      send_event = false;
+      pointerWindow.window = nullptr;
       pointerWindow.x = pointerWindow.y = -DESKTOP_SIZE / 2;
     }
 
@@ -807,8 +834,8 @@ void WindowManager::updateCursorWindow(std::vector<WmWindow *> &renderWindows)
   
   if (send_event)
     {
-      VRXMouseMotionEvent(pointerWindow.x + DESKTOP_SIZE / 2,
-                          pointerWindow.y + DESKTOP_SIZE / 2, false);
+      VRXMouseMotionEvent(pointerWindow.x + pointerWindow.window->getPosX(),
+                          pointerWindow.y + pointerWindow.window->getPosY(), false);
     }
 }
 

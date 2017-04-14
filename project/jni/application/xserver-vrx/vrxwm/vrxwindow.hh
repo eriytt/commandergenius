@@ -55,23 +55,25 @@ public:
   gvr::Mat4f modelView;
 
 private:
+  unsigned int x, y; // This is where the window "believe" it is mapped
   unsigned int width = 0, height = 0;
   unsigned int texWidth = 0, texHeight = 0;
   float scale = 1.0f;
   float distance = DEFAULT_DISTANCE;
   gvr::Mat4f head;
   gvr::Mat4f headInverse;
-  Window childId = -1;
+  Window childId = 0;
 
   void allocTexture(unsigned int w, unsigned int h);
 
 public:
-  WmWindow(Window id);
-  WmWindow(Window id, Window childid);
+  WmWindow(Window id, unsigned int x, unsigned int y);
+  WmWindow(Window id, unsigned int x, unsigned int y, Window childid);
   ~WmWindow();
   void setMapped(bool m) {mapped = m;}
   bool getMapped() const {return mapped;}
   bool isGone() const {return gone;}
+  bool isFrame() const {return childId != 0;}
 
   Window getId() const {return id;}
   Window getChildId() const {return childId;}
@@ -93,4 +95,6 @@ public:
   void setSize(unsigned int w, unsigned int h);
   float getHalfWidth() const {return width / 2.0f;}
   float getHalfHeight() const {return height / 2.0f;}
+  unsigned int getPosX() const {return x;}
+  unsigned int getPosY() const {return y;}
 };
